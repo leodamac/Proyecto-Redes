@@ -16,6 +16,7 @@ public class Servidor {
     public static void recibirDatos(ArrayList<Segmento> segmentos) {
         // Filtrar segmentos no perdidos
         ArrayList<Segmento> segmentosRecibidos = new ArrayList<>();
+        int cantidadPaquetes = segmentos.size();
         int cantidadPaquetesPerdidos = 0;
         for (Segmento segmento : segmentos) {
             if (!segmento.isPerdido()) 
@@ -23,7 +24,10 @@ public class Servidor {
             else
               cantidadPaquetesPerdidos++;
         }
-        System.out.println("Paquetes perdidos: " + (cantidadPaquetesPerdidos * 100 / segmentos.size()) + "%");
+        System.out.print("Paquetes: Enviados = " + cantidadPaquetes);
+        System.out.print(", Recibidos = " + (cantidadPaquetes - cantidadPaquetesPerdidos));
+        System.out.print(", Perdidos = " + cantidadPaquetesPerdidos);
+        System.out.println(" (" + (cantidadPaquetesPerdidos * 100 / cantidadPaquetes) + "% perdida)");
 
         // Ordenar segmentos por número de secuencia
         Collections.sort(segmentosRecibidos, Comparator.comparingInt(Segmento::getNumeroSecuencia));
