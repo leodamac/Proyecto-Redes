@@ -20,6 +20,19 @@ public class TransporLayer extends Layer{
         this.sourcePort = Utilidades.toArrayBinarie(sourcePort, this.sizeBitsPort);
         this.destinationPort = Utilidades.toArrayBinarie(destinationPort, this.sizeBitsPort);
     }
+    
+    public boolean sendSegmentToNetworkLayer(char[] segment){
+        return true;
+    }
+    
+    public boolean recibeFrameForNetworkLayer(char[] frame){
+        return true;
+    }
+    
+    public char[] sendDataToAplicationLayer(){
+        char[] data = new char[1024];
+        return data;
+    }
 
     @Override
     public char[] encapsulation(char[] data, boolean urgentFlag, char[] urgentData) {
