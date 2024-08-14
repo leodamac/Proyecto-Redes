@@ -2,6 +2,9 @@ package ec.edu.espol.capas;
 
 import extras.Utilidades;
 import java.util.Arrays;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import pool.DataPool;
 
 public class TransporLayer extends Layer{
     private final boolean connectionOriented;
@@ -12,26 +15,107 @@ public class TransporLayer extends Layer{
     private static char[] sequenceNumber = Utilidades.toArrayBinarie(0 ,nBitsSegments); //Used to identify the lost segments and maintain the sequencing in transmission.
     private static char[] acknowledgmentNumber = Utilidades.toArrayBinarie(0 ,nBitsSegments);; //Used to send a verification of received segments and to ask for the next segments
     private final int checksumSize = 16;
+    private char[] segmentPool;
+    private NetworkLayer networkLayer;
+    private AplicationLayer aplicationLayer;
     
-    public TransporLayer(boolean connectionOriented, int sourcePort, int destinationPort){
+    private DataPool<char[]> transportLayerPool;
+    
+    public TransporLayer(boolean connectionOriented){
         this.dataGram = "segment";
         this.level = 3;
         this.connectionOriented = connectionOriented;
-        this.sourcePort = Utilidades.toArrayBinarie(sourcePort, this.sizeBitsPort);
-        this.destinationPort = Utilidades.toArrayBinarie(destinationPort, this.sizeBitsPort);
+        if(this.connectionOriented){
+           segmentPool  = new char[1024];
+           this.transportLayerPool = new DataPool<>(20);
+        }
+    }
+
+    public char[] getSourcePort() {
+        return sourcePort;
+    }
+
+    public void setSourcePort(char[] sourcePort) {
+        this.sourcePort = sourcePort;
     }
     
-    public boolean sendSegmentToNetworkLayer(char[] segment){
+    public void setSourcePort(int sourcePort) {
+        this.sourcePort = Utilidades.toArrayBinarie(sourcePort, sizeBitsPort);
+    }
+
+    public char[] getDestinationPort() {
+        return destinationPort;
+    }
+
+    public void setDestinationPort(char[] destinationPort) {
+        this.destinationPort = destinationPort;
+    }
+    
+        public void setDestinationPort(int destinationPort) {
+        this.destinationPort = Utilidades.toArrayBinarie(destinationPort, sizeBitsPort);
+    }
+    
+    public boolean connectToNetworkLayer(NetworkLayer networkLayer){
+        if(networkLayer == null){
+            return false;
+        }
+        this.networkLayer = networkLayer;
         return true;
     }
     
-    public boolean recibeFrameForNetworkLayer(char[] frame){
+    public boolean connectToAplicationLayer(AplicationLayer aplicationLayer){
+        if(aplicationLayer == null){
+            return false;
+        }
+        this.aplicationLayer = aplicationLayer;
         return true;
     }
     
-    public char[] sendDataToAplicationLayer(){
-        char[] data = new char[1024];
-        return data;
+    public void sendData(char[] data, DataPool<char[]> pool) throws InterruptedException {
+        pool.add(data);
+    }
+
+    public char[] receiveData(DataPool<char[]> pool) throws InterruptedException {
+        char[] receivedMessage = pool.take();
+        return receivedMessage;
+    }
+
+    public DataPool<char[]> getTransportLayerPool() {
+        return transportLayerPool;
+    }
+    
+    public void sendDataToAplicationLayer(char[] data){
+        try {
+            this.aplicationLayer.getAplicationLayerPool().add(this.desencapsulation(data));
+        } catch (InterruptedException ex) {
+            Logger.getLogger(TransporLayer.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public void sendDataToNetworkLayer(char[] data){
+        try {
+            this.networkLayer.getNetworkLayerPool().add(this.encapsulation(data));
+        } catch (InterruptedException ex) {
+            Logger.getLogger(TransporLayer.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public char[] receiveDataFromAplicationLayer(){
+        try {
+            return this.aplicationLayer.getAplicationLayerPool().take();
+        } catch (InterruptedException ex) {
+            Logger.getLogger(TransporLayer.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
+    
+    public char[] receiveDataFromNetworkLayer(){
+        try {
+            return this.networkLayer.getNetworkLayerPool().take();
+        } catch (InterruptedException ex) {
+            Logger.getLogger(TransporLayer.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
 
     @Override
@@ -48,7 +132,6 @@ public class TransporLayer extends Layer{
         
         return cap;
     }
-    
     
     @Override
     public char[] encapsulation(char[] data) {

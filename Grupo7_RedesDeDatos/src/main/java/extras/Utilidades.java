@@ -1,15 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package extras;
 
 import java.util.Arrays;
 
-/**
- *
- * @author Leo
- */
 public class Utilidades {
     public static char[] toArrayBinarie(int data, int size_bits){
         String binario = Integer.toBinaryString(data);
