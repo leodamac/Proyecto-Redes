@@ -7,11 +7,11 @@ public abstract class Layer {
     short level;
     String dataGram;
     
-    private DataPool<char[]> poolInSuperior;
-    private DataPool<char[]> poolOutSuperior;
+    DataPool<char[]> poolInSuperior;
+    DataPool<char[]> poolOutSuperior;
     
-    private DataPool<char[]> poolInInferior;
-    private DataPool<char[]> poolOutInferior;
+    DataPool<char[]> poolInInferior;
+    DataPool<char[]> poolOutInferior;
 
     public Layer(short level, String dataGram) {
         this.level = level;
@@ -35,8 +35,6 @@ public abstract class Layer {
         return level;
     }
     
-    
-
     public DataPool<char[]> getPoolInSuperior() {
         return poolInSuperior;
     }
@@ -51,10 +49,6 @@ public abstract class Layer {
 
     public DataPool<char[]> getPoolOutInferior() {
         return poolOutInferior;
-    }
-    
-    public void send(){
-        
     }
     
     public void sendDataInferior(char[] data) throws InterruptedException {

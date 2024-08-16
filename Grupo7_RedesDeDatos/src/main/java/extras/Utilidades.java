@@ -12,7 +12,7 @@ public class Utilidades {
             return null;
         }
         for(int i = 0; b.length>i; i++){
-            conversion[size_bits-b.length+i-1] = b[i];
+            conversion[size_bits-b.length+i] = b[i];
         }
         return conversion;
     }

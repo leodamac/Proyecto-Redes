@@ -21,6 +21,7 @@ public class Application implements Runnable{
         this.applicationLayer = new AplicationLayer(connectionOriented);
         this.transportLayer = new TransporLayer(connectionOriented);
         this.transportLayer.setSourcePort(8080);
+        this.transportLayer.setDestinationPort(10);
         this.applicationLayer.conectTransportLayer(transportLayer);
         this.transportLayer.connectToAplicationLayer(applicationLayer);
         this.pool = new DataPool<>(20);
@@ -116,5 +117,23 @@ public class Application implements Runnable{
         new Thread(senderDatToNet).start();
         new Thread(senderDatToPhy).start();
         new Thread(senderPhyToDat).start();
+        new Thread(()->{
+            while(true){
+                try {
+                    this.pool.add(this.applicationLayer.getPoolInInferior().take());
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+            }).start();
+        new Thread(()->{
+            while(true){
+                try {
+                    System.out.println(Arrays.toString(this.pool.take()));
+                } catch (InterruptedException ex) {
+                    Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
+            }).start();
     }
 }

@@ -2,7 +2,6 @@ package ec.edu.espol.capas;
 
 import extras.Utilidades;
 import java.util.Arrays;
-import pool.DataPool;
 
 public class TransporLayer extends Layer{
     private final boolean connectionOriented;
@@ -73,14 +72,15 @@ public class TransporLayer extends Layer{
         this.aplicationLayer = aplicationLayer;
         return true;
     }
-    
-    public void sendData(char[] data, DataPool<char[]> pool) throws InterruptedException {
-        pool.add(data);
-    }
 
-    public char[] receiveData(DataPool<char[]> pool) throws InterruptedException {
-        char[] receivedMessage = pool.take();
-        return receivedMessage;
+    @Override
+    public void sendDataInferior(char[] data) throws InterruptedException {
+        poolOutInferior.add(this.encapsulation(data));
+    }
+    
+    @Override
+    public void sendDataSuperior(char[] data) throws InterruptedException {
+        poolOutSuperior.add(this.desencapsulation(data));
     }
 
     @Override
@@ -104,51 +104,52 @@ public class TransporLayer extends Layer{
     }
 
     @Override
-    public char[] desencapsulation(char[] data) {
-        int offset = 0;
-        
-        char[] extractedSourcePort = Arrays.copyOfRange(data, offset, offset + sizeBitsPort);
-        offset += sizeBitsPort;
-
-        char[] extractedDestinationPort = Arrays.copyOfRange(data, offset, offset + sizeBitsPort);
-        offset += sizeBitsPort;
-
+    public char[] desencapsulation(char[] encapsulatedData) {
+        // Extraer el tamaño del headerLength en bits
+        int n = this.sourcePort.length + this.destinationPort.length;
         if (this.connectionOriented) {
-            char[] extractedSequenceNumber = Arrays.copyOfRange(data, offset, offset + nBitsSegments);
-            offset += nBitsSegments;
-
-            char[] extractedAcknowledgmentNumber = Arrays.copyOfRange(data, offset, offset + nBitsSegments);
-            offset += nBitsSegments;
-
-            char[] urgentPointer = Arrays.copyOfRange(data, offset, offset + 16);
-            offset += 16;
+            n += TransporLayer.sequenceNumber.length;
+            n += TransporLayer.acknowledgmentNumber.length;
+            n += 16; // Tamaño del campo "urgentData"
         }
+        // Determinar el tamaño del headerLength
+        int headerLengthBits = (int) Math.ceil(Utilidades.log2(n + this.checksumSize));
+        char[] headerLength = Utilidades.toArrayBinarie(headerLengthBits, Integer.toBinaryString(headerLengthBits).length());
+        n += headerLength.length;
 
-        int headerLength = Utilidades.toIntFromBinary(Arrays.copyOfRange(data, offset, offset + 16));
-        offset += 16;
+        // Verificar checksum
+        char[] header = new char[n];
+        System.arraycopy(encapsulatedData, 0, header, 0, n);
+        
+        char[] data = new char[encapsulatedData.length-header.length-this.checksumSize];
+        System.arraycopy(encapsulatedData, header.length+this.checksumSize, data, 0, data.length);
+        
+        char[] dataWithHeader = new char[data.length+header.length];
+        System.arraycopy(header, 0, dataWithHeader, 0, header.length);
+        System.arraycopy(data, 0, dataWithHeader, header.length,data.length);
+        
+        char[] calculatedChecksum = this.doCheckSum(dataWithHeader);
+        
+        // El checksum empieza donde acaba el header
+        int checksumStart = header.length;
 
-        // Obtener el checksum
-        char[] extractedChecksum = Arrays.copyOfRange(data, offset, offset + checksumSize);
-        offset += checksumSize;
-
-        // Verificar el checksum
-        char[] headerData = Arrays.copyOfRange(data, 0, offset);
-        char[] extractedData = Arrays.copyOfRange(data, offset, data.length);
-        char[] calculatedChecksum = doCheckSum(extractedData);
-
-        if (!Arrays.equals(extractedChecksum, calculatedChecksum)) {
-            throw new IllegalArgumentException("Checksum mismatch: data may be corrupted");
+        char[] receivedChecksum = new char[this.checksumSize];
+        System.arraycopy(encapsulatedData, checksumStart, receivedChecksum, 0, this.checksumSize);
+   
+        // Verificar si los checksums coinciden
+        if (!Arrays.equals(calculatedChecksum, receivedChecksum)) {
+            return null;
         }
-
-        // Retornar los datos sin el encabezado
-        return extractedData;
+        data[0] = '1';
+        return data;
     }
 
     @Override
     public char[] generateHeader(char [] data, char[] urgentData) {
         int size = this.sourcePort.length + this.destinationPort.length;
-        char[] header = new char[size];
+        char[] header;
         int n = 0;
+        header = new char[size];
         System.arraycopy(sourcePort, 0, header, n, sourcePort.length);
         n+= sourcePort.length;
         System.arraycopy(destinationPort, 0, header, n, destinationPort.length);
@@ -161,19 +162,39 @@ public class TransporLayer extends Layer{
             }else{
                 Arrays.fill(urgent, '0');
             }
+            size += sequenceNumber.length + acknowledgmentNumber.length + urgent.length;
+            char[] temp = new char[size];
+            System.arraycopy(header, 0, temp, 0, header.length);
+            header = new char[size];
+            System.arraycopy(temp, 0, header, 0, size);
+            
             System.arraycopy(TransporLayer.sequenceNumber, 0, header, n, TransporLayer.sequenceNumber.length);
             n+= TransporLayer.sequenceNumber.length;
             System.arraycopy(TransporLayer.acknowledgmentNumber, 0, header, n, TransporLayer.acknowledgmentNumber.length);
             n+= TransporLayer.acknowledgmentNumber.length;
             System.arraycopy(urgent, 0, header, n, urgent.length);
             n+= urgent.length;
-            size += sequenceNumber.length + acknowledgmentNumber.length + urgent.length;
         }
-        char[] headerLength = Utilidades.toArrayBinarie((int)Math.ceil(Utilidades.log2(size)), size);
+        
+        int headerLengthBits = (int)Math.ceil(Utilidades.log2(size+ this.checksumSize));
+        char[] headerLength = Utilidades.toArrayBinarie(headerLengthBits, Integer.toBinaryString(headerLengthBits).length());
+        
+        size += this.checksumSize + headerLength.length;
+        char[] temp = new char[size];
+        System.arraycopy(header, 0, temp, 0, header.length);
+        header = new char[size];
+        System.arraycopy(temp, 0, header, 0, header.length);
+        
         System.arraycopy(headerLength, 0, header, n, headerLength.length);
         n+= headerLength.length;
-        char[] checksum = this.doCheckSum(data);  
-        System.arraycopy(checksum, 0, header, n, checksum.length);
+        char[] c = new char[data.length + header.length];
+
+        System.arraycopy(header,0,c,0,header.length);
+        System.arraycopy(data,0,c,header.length,data.length);
+        
+        char[] checksum = this.doCheckSum(c);  
+        System.arraycopy(checksum, 0, header, n, this.checksumSize);
+        n+= this.checksumSize;
         return header;
     }
     
