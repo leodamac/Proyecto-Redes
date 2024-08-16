@@ -22,4 +22,8 @@ public class DataPool<T> {
     public boolean isEmpty() {
         return queue.isEmpty();
     }
+    
+    public int size(){
+        return queue.size();
+    }
 }

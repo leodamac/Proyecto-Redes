@@ -8,6 +8,7 @@ import ec.edu.espol.capas.DataLinkLayer;
 import ec.edu.espol.capas.NetworkLayer;
 import java.util.LinkedList;
 import java.util.List;
+import pool.Sender;
 
 public class Router implements Runnable{
     NetworkLayer networkLayer;
@@ -36,7 +37,11 @@ public class Router implements Runnable{
 
     @Override
     public void run() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        Sender senderPhy1ToPhy2 = new Sender(this.cables.get(0).getPhysicalLayer(),this.cables.get(1).getPhysicalLayer());
+        //Sender senderPhy2ToPhy1 = new Sender(this.cables.get(1).getPhysicalLayer(),this.cables.get(0).getPhysicalLayer());
+        
+        new Thread(senderPhy1ToPhy2).start();
+        //new Thread(senderPhy2ToPhy1).start();
     }
     
     

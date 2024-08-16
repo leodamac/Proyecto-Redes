@@ -1,29 +1,22 @@
 package ec.edu.espol.capas;
 
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import pool.DataPool;
-
 public class DataLinkLayer extends Layer{
-    
-    private DataPool<char[]> dataLinklLayerPool;
     private PhysicalLayer physicalLayer;
     private NetworkLayer networkLayer;
     private String MAC;
     private String IP;
 
     public DataLinkLayer(String MAC) {
+        super((short)2, "trama");
         this.MAC = MAC;
-        this.dataLinklLayerPool = new DataPool<>(20);
-    }
-    
-    public void sendData(char[] data, DataPool<char[]> pool) throws InterruptedException {
-        pool.add(data);
     }
 
-    public char[] receiveData(DataPool<char[]> pool) throws InterruptedException {
-        char[] receivedMessage = pool.take();
-        return receivedMessage;
+    public PhysicalLayer getPhysicalLayer() {
+        return physicalLayer;
+    }
+
+    public NetworkLayer getNetworkLayer() {
+        return networkLayer;
     }
     
     public boolean conectToPhysicalLayer(PhysicalLayer physicalLayer){
@@ -45,45 +38,6 @@ public class DataLinkLayer extends Layer{
     
     public String generateIP(){
         return this.networkLayer.generateIP();
-    }
-
-    public DataPool<char[]> getDataLinklLayerPool() {
-        return dataLinklLayerPool;
-    }
-    
-    public void sendDataToPhysicalLayer(char[] data){
-        try {
-            this.physicalLayer.getPhysicalLayerPool().add(data);
-        } catch (InterruptedException ex) {
-            Logger.getLogger(DataLinkLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
-    public void sendDataToNetworkLayer(char[] data){
-        try {
-            this.networkLayer.getNetworkLayerPool().add(data);
-        } catch (InterruptedException ex) {
-            Logger.getLogger(DataLinkLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
-    public char[] receiveDataFromNetworkLayer(){
-        try {
-            return this.networkLayer.getNetworkLayerPool().take();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(PhysicalLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
-        return null;
-    }
-    
-    public char[] receiveDataFromPhysicalLayer(){
-        try {
-            return this.physicalLayer.getPhysicalLayerPool().take();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(PhysicalLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return null;
     }
 
     @Override

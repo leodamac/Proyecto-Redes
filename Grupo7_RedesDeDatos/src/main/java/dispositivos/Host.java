@@ -5,7 +5,7 @@ import application.Mail;
 import application.Radio;
 import ec.edu.espol.capas.*;
 
-public class Host {
+public class Host{
     Cable cable;
     
     private final DataLinkLayer dataLinkLayer; //Simula tarjeta de red
@@ -21,6 +21,7 @@ public class Host {
         this.networkLayer.setIP(cable.getPhysicalLayer().getDataLinkLayer().generateIP());// Tarjeta de red del otro dispositivo conectado y le asigna IP
         this.dataLinkLayer.conectToNetworkLayer(networkLayer);
         this.dataLinkLayer.conectToPhysicalLayer(this.cable.getPhysicalLayer());
+        this.networkLayer.conectToDataLinkLayer(dataLinkLayer);
     }
     
     public Application openApplication(String name){
@@ -37,7 +38,5 @@ public class Host {
         }
         app.getTransportLayer().connectToNetworkLayer(networkLayer);
         return app;
-    }
-    
-    
+    }    
 }

@@ -2,8 +2,6 @@ package ec.edu.espol.capas;
 
 import extras.Utilidades;
 import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import pool.DataPool;
 
 public class TransporLayer extends Layer{
@@ -19,16 +17,21 @@ public class TransporLayer extends Layer{
     private NetworkLayer networkLayer;
     private AplicationLayer aplicationLayer;
     
-    private DataPool<char[]> transportLayerPool;
     
     public TransporLayer(boolean connectionOriented){
-        this.dataGram = "segment";
-        this.level = 3;
+        super((short)4, "segmento");
         this.connectionOriented = connectionOriented;
         if(this.connectionOriented){
            segmentPool  = new char[1024];
-           this.transportLayerPool = new DataPool<>(20);
         }
+    }
+    
+    public NetworkLayer getNetworkLayer(){
+        return this.networkLayer;
+    }
+    
+    public AplicationLayer getAplicationLayer(){
+        return this.aplicationLayer;
     }
 
     public char[] getSourcePort() {
@@ -78,44 +81,6 @@ public class TransporLayer extends Layer{
     public char[] receiveData(DataPool<char[]> pool) throws InterruptedException {
         char[] receivedMessage = pool.take();
         return receivedMessage;
-    }
-
-    public DataPool<char[]> getTransportLayerPool() {
-        return transportLayerPool;
-    }
-    
-    public void sendDataToAplicationLayer(char[] data){
-        try {
-            this.aplicationLayer.getAplicationLayerPool().add(this.desencapsulation(data));
-        } catch (InterruptedException ex) {
-            Logger.getLogger(TransporLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
-    public void sendDataToNetworkLayer(char[] data){
-        try {
-            this.networkLayer.getNetworkLayerPool().add(this.encapsulation(data));
-        } catch (InterruptedException ex) {
-            Logger.getLogger(TransporLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
-    public char[] receiveDataFromAplicationLayer(){
-        try {
-            return this.aplicationLayer.getAplicationLayerPool().take();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(TransporLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return null;
-    }
-    
-    public char[] receiveDataFromNetworkLayer(){
-        try {
-            return this.networkLayer.getNetworkLayerPool().take();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(TransporLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return null;
     }
 
     @Override

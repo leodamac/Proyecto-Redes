@@ -2,20 +2,25 @@ package ec.edu.espol.capas;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import pool.DataPool;
 
 public class NetworkLayer extends Layer{
     private DataLinkLayer dataLinkLayer;
     private TransporLayer transportLayer;
-    private DataPool<char[]> networkLayerPool;
     private String IP;
     private List<String> ipTable;
     
     public NetworkLayer() {
-        this.networkLayerPool = new DataPool<>(20);
+        super((short)3, "paquete");
         this.ipTable = new LinkedList<>();
+    }
+
+    public DataLinkLayer getDataLinkLayer() {
+        return dataLinkLayer;
+    }
+
+    public TransporLayer getTransportLayer() {
+        return transportLayer;
     }
     
     public void setIP(String IP){
@@ -56,48 +61,7 @@ public class NetworkLayer extends Layer{
     public char[] receiveData(DataPool<char[]> pool) throws InterruptedException {
         char[] receivedMessage = pool.take();
         return receivedMessage;
-    }
-    
-    public void sendDataToDataLinkLayer(char[] data){
-        try {
-            this.dataLinkLayer.getDataLinklLayerPool().add(data);
-        } catch (InterruptedException ex) {
-            Logger.getLogger(PhysicalLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
-    public char[] receiveDataFromDataLinkLayer(){
-        try {
-            return this.dataLinkLayer.getDataLinklLayerPool().take();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(PhysicalLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
-        return null;
-    }
-    
-    public void sendDataToTransportLayer(char[] data){
-        try {
-            this.transportLayer.getTransportLayerPool().add(data);
-        } catch (InterruptedException ex) {
-            Logger.getLogger(AplicationLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
-    public char[] getDataFromTransportLayer(){
-        try {
-            return this.transportLayer.getTransportLayerPool().take();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(AplicationLayer.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return null;
-    }
-
-    public DataPool<char[]> getNetworkLayerPool() {
-        return networkLayerPool;
-    }
-    
-    
+    } 
 
     @Override
     public char[] encapsulation(char[] data, boolean urgentFlag, char[] urgentData) {
