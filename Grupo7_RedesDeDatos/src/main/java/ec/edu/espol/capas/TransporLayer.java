@@ -2,6 +2,7 @@ package ec.edu.espol.capas;
 
 import extras.Utilidades;
 import java.util.Arrays;
+import java.util.PriorityQueue;
 
 public class TransporLayer extends Layer{
     private final boolean connectionOriented;
@@ -9,10 +10,11 @@ public class TransporLayer extends Layer{
     private final static int nBitsSegments = 32;
     private char[] sourcePort = new char[sizeBitsPort]; //sourcePort
     private char[] destinationPort = new char[sizeBitsPort]; //destinationPort
-    private static char[] sequenceNumber = Utilidades.toArrayBinarie(0 ,nBitsSegments); //Used to identify the lost segments and maintain the sequencing in transmission.
-    private static char[] acknowledgmentNumber = Utilidades.toArrayBinarie(0 ,nBitsSegments);; //Used to send a verification of received segments and to ask for the next segments
+    private char[] sequenceNumber = Utilidades.toArrayBinarie(0 ,nBitsSegments); //Used to identify the lost segments and maintain the sequencing in transmission.
+    private char[] acknowledgmentNumber = Utilidades.toArrayBinarie(0 ,nBitsSegments); //Used to send a verification of received segments and to ask for the next segments
     private final int checksumSize = 16;
-    private char[] segmentPool;
+    private PriorityQueue<char[]> segmentPoolIn;
+    private PriorityQueue<char[]> segmentPoolOut;
     private NetworkLayer networkLayer;
     private AplicationLayer aplicationLayer;
     
@@ -21,7 +23,8 @@ public class TransporLayer extends Layer{
         super((short)4, "segmento");
         this.connectionOriented = connectionOriented;
         if(this.connectionOriented){
-           segmentPool  = new char[1024];
+           segmentPoolIn = new PriorityQueue();
+           segmentPoolOut = new PriorityQueue();
         }
     }
     
@@ -108,8 +111,8 @@ public class TransporLayer extends Layer{
         // Extraer el tamaño del headerLength en bits
         int n = this.sourcePort.length + this.destinationPort.length;
         if (this.connectionOriented) {
-            n += TransporLayer.sequenceNumber.length;
-            n += TransporLayer.acknowledgmentNumber.length;
+            n += this.sequenceNumber.length;
+            n += this.acknowledgmentNumber.length;
             n += 16; // Tamaño del campo "urgentData"
         }
         // Determinar el tamaño del headerLength
@@ -140,7 +143,6 @@ public class TransporLayer extends Layer{
         if (!Arrays.equals(calculatedChecksum, receivedChecksum)) {
             return null;
         }
-        data[0] = '1';
         return data;
     }
 
@@ -155,7 +157,7 @@ public class TransporLayer extends Layer{
         System.arraycopy(destinationPort, 0, header, n, destinationPort.length);
         n+= destinationPort.length;
         if(this.connectionOriented){
-            Utilidades.addBitToArrayBinarie(TransporLayer.sequenceNumber); //Used to identify the lost segments and maintain the sequencing in transmission.
+            Utilidades.addBitToArrayBinarie(this.sequenceNumber); //Used to identify the lost segments and maintain the sequencing in transmission.
             char[] urgent = new char[16];
             if(urgentData != null){
                 urgent = urgentData;
@@ -168,10 +170,10 @@ public class TransporLayer extends Layer{
             header = new char[size];
             System.arraycopy(temp, 0, header, 0, size);
             
-            System.arraycopy(TransporLayer.sequenceNumber, 0, header, n, TransporLayer.sequenceNumber.length);
-            n+= TransporLayer.sequenceNumber.length;
-            System.arraycopy(TransporLayer.acknowledgmentNumber, 0, header, n, TransporLayer.acknowledgmentNumber.length);
-            n+= TransporLayer.acknowledgmentNumber.length;
+            System.arraycopy(this.sequenceNumber, 0, header, n, this.sequenceNumber.length);
+            n+= this.sequenceNumber.length;
+            System.arraycopy(this.acknowledgmentNumber, 0, header, n, this.acknowledgmentNumber.length);
+            n+= this.acknowledgmentNumber.length;
             System.arraycopy(urgent, 0, header, n, urgent.length);
             n+= urgent.length;
         }

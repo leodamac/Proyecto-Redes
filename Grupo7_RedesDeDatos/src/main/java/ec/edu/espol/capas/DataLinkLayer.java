@@ -47,12 +47,12 @@ public class DataLinkLayer extends Layer{
 
     @Override
     public char[] encapsulation(char[] data) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return data;
     }
 
     @Override
     public char[] desencapsulation(char[] data) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return data;
     }
 
     @Override
