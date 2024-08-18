@@ -7,6 +7,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.PriorityQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import pool.DataPool;
@@ -17,7 +18,13 @@ public class Application implements Runnable{
     private TransporLayer transportLayer;
     private final int dataSize = 128;
     public static String path;
-    private DataPool<char[]> pool;
+//    private int contador;
+    public DataPool<String> pool;
+    public PriorityQueue<String> mensajesAlFinalDeTodo = new PriorityQueue<>((o1, o2) -> {
+        int id1 = Integer.parseInt(o1.split("\\|")[0]);
+        int id2 = Integer.parseInt(o2.split("\\|")[0]);
+        return id1 - id2;
+    });
     
     public Application(boolean connectionOriented) {
         this.applicationLayer = new AplicationLayer(connectionOriented);
@@ -54,19 +61,14 @@ public class Application implements Runnable{
             int i = 0;
             while(!fin){
                 try {
-                    char[] data;
-                    if(i == 0){
-                        data = this.dividirData(fr, i, 1);
-                    } else{
-                        data = this.dividirData(fr, i, 0);
-                    }
+//                    this.contador++;
+                    char[] data = this.dividirData(fr, i);
                     //char[] data = {'h','o','l','a'};
                     if(data == null){
                         fin = true;
                         fr.close();
                     }else{
                         segmentos.add(data);
-//                        this.applicationLayer.getPoolInSuperior().add(data);
                         System.out.println(++i);
                     }
                 } catch (IOException ex) {
@@ -75,14 +77,18 @@ public class Application implements Runnable{
             }
             exito = true;
         }
-//        segmentos.get(segmentos.size()-1);
+//        String mensaje = new String(segmentos.get(segmentos.size()-1));
+//        String[] mensajitos = mensaje.split("|");
+//        int tamañoNum = mensajitos[0].length(); 
+//        segmentos.get(segmentos.size()-1)[tamañoNum+2] = '2';
+        
         this.applicationLayer.getPoolInSuperior().addAll(segmentos);
         return exito;
     }
     
-    private char[] dividirData(FileReader fr, int indice, int flag) throws IOException{
+    private char[] dividirData(FileReader fr, int indice) throws IOException{
         char[] buffer = new char[dataSize];
-        String mensaje = indice + "|" + flag + "|";
+        String mensaje = indice + "|";
         //char[] buffer = {'h','o','l','a'};
         int charLeidos = 0;
         int x = 1;
@@ -131,33 +137,41 @@ public class Application implements Runnable{
         new Thread(senderDatToPhy).start();
         new Thread(senderPhyToDat).start();
         new Thread(()->{
-            while(true){
-                try {
-                    this.pool.add(this.applicationLayer.getPoolInInferior().take());
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
-                }
-            }
-            }).start();
-        new Thread(() -> {
-            // Crear el FileWriter para escribir en el archivo
-            FileWriter writer = null;
-            try {
-                writer = new FileWriter("mensaje.txt", true); // true para agregar al final del archivo
-                while (true) {
+            do{
+//                while(contador!=0){
                     try {
-                        // Toma un mensaje del pool y lo convierte a String
-                        String mensaje = new String(this.pool.take());
-                        System.out.println(mensaje);
-                        // Escribir el contenido del mensaje en el archivo
-                        writer.write(mensaje);
+                        String mensaje = new String(this.applicationLayer.getPoolInInferior().take());
+//                        System.out.println(mensaje);
+//                        String[] mensajitos = mensaje.split("|");
+//                        int posicion = Integer.parseInt(mensajitos[0]); 
+                        this.mensajesAlFinalDeTodo.offer(mensaje);
+//                        this.contador--;
                     } catch (InterruptedException ex) {
+                        
                         Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
                     }
-                }
-            } catch (IOException e) {
-                    Logger.getLogger(Application.class.getName()).log(Level.SEVERE, "Ocurrió un error al escribir en el archivo", e);
-            }
+//                }
+            } while(Thread.currentThread().isInterrupted());
+//            for(String mens : mensajesAlFinalDeTodo){
+//                System.out.println(mens.split("\\|")[1]);
+//            }
+            
         }).start();
+//        new Thread(() -> {
+//            // Crear el FileWriter para escribir en el archivo
+//            FileWriter writer = null;
+//            try {
+//                writer = new FileWriter("mensaje.txt", true); // true para agregar al final del archivo
+//                while (!mensajesAlFinalDeTodo.isEmpty()) {
+//                    this.applicationLayer.getPoolInInferior();
+//                    // Toma un mensaje del pool y lo convierte a String
+//                    
+//                    // Escribir el contenido del mensaje en el archivo
+//                    writer.write(mensaje);
+//                }
+//            } catch (IOException e) {
+//                    Logger.getLogger(Application.class.getName()).log(Level.SEVERE, "Ocurrió un error al escribir en el archivo", e);
+//            }
+//        }).start();
     }
 }
