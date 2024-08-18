@@ -6,10 +6,11 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.PriorityQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.application.Platform;
+import javafx.scene.control.TextArea;
 import pool.DataPool;
 import pool.Sender;
 
@@ -18,6 +19,8 @@ public class Application implements Runnable{
     private TransporLayer transportLayer;
     private final int dataSize = 128;
     public static String path;
+    private int datosEnviados;
+    private int datosRecibidos;
 //    private int contador;
     public DataPool<String> pool;
     public PriorityQueue<String> mensajesAlFinalDeTodo = new PriorityQueue<>((o1, o2) -> {
@@ -25,6 +28,8 @@ public class Application implements Runnable{
         int id2 = Integer.parseInt(o2.split("\\|")[0]);
         return id1 - id2;
     });
+    private Thread t = null;
+    public String dataF = "";
     
     public Application(boolean connectionOriented) {
         this.applicationLayer = new AplicationLayer(connectionOriented);
@@ -34,6 +39,29 @@ public class Application implements Runnable{
         this.applicationLayer.conectTransportLayer(transportLayer);
         this.transportLayer.connectToAplicationLayer(applicationLayer);
         this.pool = new DataPool<>(20);
+        this.datosEnviados = 0;
+        this.datosRecibidos = 0;
+    }
+
+    public Thread getT() {
+        return t;
+    }
+
+    public String getData(){
+        try {
+            return this.pool.take();
+        } catch (InterruptedException ex) {
+            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return "";
+    }
+
+    public int getDatosEnviados() {
+        return datosEnviados;
+    }
+
+    public int getDatosRecibidos() {
+        return datosRecibidos;
     }
 
     public AplicationLayer getApplicationLayer() {
@@ -43,7 +71,94 @@ public class Application implements Runnable{
     public TransporLayer getTransportLayer() {
         return transportLayer;
     }
+
+    public boolean sendFile(String path) throws IOException{
+        SendFile sf = new SendFile(path);
+        new Thread(sf).start();
+        return true;
+    }
     
+    public Thread receiveDataFile(TextArea textArea) {
+        ReceiveFile rf = new ReceiveFile(textArea);
+        Thread t = new Thread(rf);
+        t.start();
+        return t;
+    }
+
+    @Override
+    public void run() {
+        Sender senderAppToTrans = new Sender(applicationLayer,transportLayer);
+        Sender senderTransToApp = new Sender(transportLayer, applicationLayer);
+
+        Sender senderTransToNetw = new Sender(transportLayer, transportLayer.getNetworkLayer());
+        Sender senderNetToTrans = new Sender(transportLayer.getNetworkLayer(),transportLayer);
+
+        Sender senderNetToDat = new Sender(transportLayer.getNetworkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer());
+        Sender senderDatToNet = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer());
+
+        Sender senderDatToPhy = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer());
+        Sender senderPhyToDat = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(),transportLayer.getNetworkLayer().getDataLinkLayer());
+
+        new Thread(senderAppToTrans).start();
+        new Thread(senderTransToApp).start();
+        new Thread(senderTransToNetw).start();
+        new Thread(senderNetToTrans).start();
+        new Thread(senderNetToDat).start();
+        new Thread(senderDatToNet).start();
+        new Thread(senderDatToPhy).start();
+        new Thread(senderPhyToDat).start();
+    }
+    
+    class ReceiveFile implements Runnable {
+        private TextArea textArea;
+
+        public ReceiveFile(TextArea textArea) {
+            this.textArea = textArea;
+        }
+
+        @Override
+        public void run() {
+            boolean fin = false;
+            while (!fin) {
+                try {
+                    String mensajeFull = new String(applicationLayer.getPoolInInferior().take());
+                    if (mensajeFull.equals("f")) {
+                        fin = true;
+                    } else {
+                        mensajesAlFinalDeTodo.offer(mensajeFull);
+                    }
+                } catch (InterruptedException ex) {
+                    fin = true;
+                }
+            }
+
+            while (!mensajesAlFinalDeTodo.isEmpty()) {
+                String mensaje = mensajesAlFinalDeTodo.poll();
+                String contenido = mensaje.split("\\|")[1];
+                Platform.runLater(() -> {
+                    textArea.appendText(contenido);
+                });
+                datosRecibidos += contenido.length();
+            }
+        }
+    }
+    
+    
+    class SendFile implements Runnable{
+        private String path;
+        private SendFile(String path){
+            this.path = path;
+        }
+        
+        @Override
+        public void run() {
+            try {
+                sendFile();
+            } catch (IOException ex) {
+                Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        
         private FileReader openFile(String path){
         try{
             return new FileReader(path);
@@ -52,18 +167,17 @@ public class Application implements Runnable{
         }
     }
     
-    public boolean sendFile(String path) throws IOException{
+    public boolean sendFile() throws IOException{
         ArrayList<char[]> segmentos = new ArrayList<>();
         boolean fin = false;
         FileReader fr = openFile(path);
         boolean exito = false;
         if(fr != null){
             int i = 0;
+            datosEnviados = 0;
             while(!fin){
                 try {
-//                    this.contador++;
                     char[] data = this.dividirData(fr, i);
-                    //char[] data = {'h','o','l','a'};
                     if(data == null){
                         fin = true;
                         fr.close();
@@ -77,101 +191,49 @@ public class Application implements Runnable{
             }
             exito = true;
         }
-//        String mensaje = new String(segmentos.get(segmentos.size()-1));
-//        String[] mensajitos = mensaje.split("|");
-//        int tamañoNum = mensajitos[0].length(); 
-//        segmentos.get(segmentos.size()-1)[tamañoNum+2] = '2';
+
+        for(char[] s: segmentos){
+            try {
+                applicationLayer.getPoolInSuperior().add(s);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        char[] f = new char[1];
+        f[0] = 'f';
+        try {
+            applicationLayer.getPoolInSuperior().add(f);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+        }
         
-        this.applicationLayer.getPoolInSuperior().addAll(segmentos);
         return exito;
     }
     
     private char[] dividirData(FileReader fr, int indice) throws IOException{
         char[] buffer = new char[dataSize];
         String mensaje = indice + "|";
-        //char[] buffer = {'h','o','l','a'};
         int charLeidos = 0;
         int x = 1;
-        while(charLeidos<this.dataSize && x!=-1){
+        while(charLeidos<dataSize && x!=-1){
             x = fr.read();
             if(x != -1){
                 buffer[charLeidos] = (char)x; 
                 charLeidos++;
             }
         }
-        //charLeidos = fr.read(buffer, n, dataSize);   
+
         if(charLeidos>0){
-            char[] mensajeRetorno = new char[buffer.length + mensaje.length()];
+            datosEnviados += charLeidos;
+            char[] cr = ("|"+String.valueOf(charLeidos)).toCharArray();
+            char[] mensajeRetorno = new char[buffer.length + cr.length + mensaje.length()];
             System.arraycopy(mensaje.toCharArray(), 0, mensajeRetorno, 0, mensaje.toCharArray().length);
             System.arraycopy(buffer, 0, mensajeRetorno, mensaje.toCharArray().length, buffer.length);
+            System.arraycopy(cr, 0, mensajeRetorno, mensaje.toCharArray().length + buffer.length, cr.length);
             return mensajeRetorno;
         }
         return null;
     }
-    
-    public char[] recieveFile(){
-        return null;
-    }
-
-    @Override
-    public void run() {
         
-        Sender senderAppToTrans = new Sender(this.applicationLayer,this.transportLayer);
-        Sender senderTransToApp = new Sender(this.transportLayer, this.applicationLayer);
-        
-        Sender senderTransToNetw = new Sender(this.transportLayer, this.transportLayer.getNetworkLayer());
-        Sender senderNetToTrans = new Sender(this.transportLayer.getNetworkLayer(),this.transportLayer);
-        
-        Sender senderNetToDat = new Sender(this.transportLayer.getNetworkLayer(),this.transportLayer.getNetworkLayer().getDataLinkLayer());
-        Sender senderDatToNet = new Sender(this.transportLayer.getNetworkLayer().getDataLinkLayer(),this.transportLayer.getNetworkLayer());
-        
-        Sender senderDatToPhy = new Sender(this.transportLayer.getNetworkLayer().getDataLinkLayer(),this.transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer());
-        Sender senderPhyToDat = new Sender(this.transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(),this.transportLayer.getNetworkLayer().getDataLinkLayer());
-        
-        new Thread(senderAppToTrans).start();
-        new Thread(senderTransToApp).start();
-        new Thread(senderTransToNetw).start();
-        new Thread(senderNetToTrans).start();
-        new Thread(senderNetToDat).start();
-        new Thread(senderDatToNet).start();
-        new Thread(senderDatToPhy).start();
-        new Thread(senderPhyToDat).start();
-        new Thread(()->{
-            do{
-//                while(contador!=0){
-                    try {
-                        String mensaje = new String(this.applicationLayer.getPoolInInferior().take());
-//                        System.out.println(mensaje);
-//                        String[] mensajitos = mensaje.split("|");
-//                        int posicion = Integer.parseInt(mensajitos[0]); 
-                        this.mensajesAlFinalDeTodo.offer(mensaje);
-//                        this.contador--;
-                    } catch (InterruptedException ex) {
-                        
-                        Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-//                }
-            } while(Thread.currentThread().isInterrupted());
-//            for(String mens : mensajesAlFinalDeTodo){
-//                System.out.println(mens.split("\\|")[1]);
-//            }
-            
-        }).start();
-//        new Thread(() -> {
-//            // Crear el FileWriter para escribir en el archivo
-//            FileWriter writer = null;
-//            try {
-//                writer = new FileWriter("mensaje.txt", true); // true para agregar al final del archivo
-//                while (!mensajesAlFinalDeTodo.isEmpty()) {
-//                    this.applicationLayer.getPoolInInferior();
-//                    // Toma un mensaje del pool y lo convierte a String
-//                    
-//                    // Escribir el contenido del mensaje en el archivo
-//                    writer.write(mensaje);
-//                }
-//            } catch (IOException e) {
-//                    Logger.getLogger(Application.class.getName()).log(Level.SEVERE, "Ocurrió un error al escribir en el archivo", e);
-//            }
-//        }).start();
     }
 }

@@ -28,11 +28,12 @@ public class Main {
         Application appPC1 = PC1.openApplication("mail");
         Application appPC2 = PC2.openApplication("mail");
         
-        appPC1.sendFile("input.txt");
+        
         
         new Thread(appPC1).start();
         new Thread(router).start();
         new Thread(appPC2).start();
+        appPC1.sendFile("input.txt");
     }
     
 }

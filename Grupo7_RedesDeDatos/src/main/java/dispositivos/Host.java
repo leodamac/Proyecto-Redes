@@ -4,16 +4,15 @@ import application.Application;
 import application.Mail;
 import application.Radio;
 import ec.edu.espol.capas.*;
+import java.util.HashMap;
+import java.util.Map;
 
-public class Host{
+public class Host extends Dispositivo{
     Cable cable;
     
-    private final DataLinkLayer dataLinkLayer; //Simula tarjeta de red
-    private final NetworkLayer networkLayer;
-    
     public Host(String MAC) {
-        dataLinkLayer = new DataLinkLayer(MAC);
-        networkLayer = new NetworkLayer();
+        super(MAC);
+        procesos = new HashMap();
     }
     
     public void connectToCable(Cable cable){
@@ -24,19 +23,7 @@ public class Host{
         this.networkLayer.conectToDataLinkLayer(dataLinkLayer);
     }
     
-    public Application openApplication(String name){
-        Application app = null;
-        switch(name){
-                case "mail":
-                    app = new Mail();
-                    break;
-                case "radio":
-                    app = new Radio();
-                    break;
-                default:
-                    break;
-        }
-        app.getTransportLayer().connectToNetworkLayer(networkLayer);
-        return app;
-    }    
+
+    
+
 }

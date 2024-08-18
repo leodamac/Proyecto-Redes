@@ -1,15 +1,19 @@
 package com.mycompany.decision;
 
+import dispositivos.Dispositivo;
+
 public class Escenario {
-    private String tipo;
-    
-    public Escenario(String tipo){
-        this.tipo = tipo;
+    private Dispositivo dispositivo;
+            
+    public Escenario(Dispositivo dispositivo){
+        this.dispositivo= dispositivo;
     }
 
-    public String getTipo() {
-        return tipo;
+    public Dispositivo getDispositivo() {
+        return dispositivo;
     }
     
-    
+    public String getTipo(){
+        return dispositivo.getTipo();
+    }
 }
