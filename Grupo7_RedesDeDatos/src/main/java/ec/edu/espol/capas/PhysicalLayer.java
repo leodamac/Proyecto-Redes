@@ -21,15 +21,6 @@ public class PhysicalLayer extends Layer{
     public DataLinkLayer getDataLinkLayer(){
         return this.dataLinkLayer;
     }
-    
-    public void sendData(char[] data, DataPool<char[]> pool) throws InterruptedException {
-        pool.add(data);
-    }
-
-    public char[] receiveData(DataPool<char[]> pool) throws InterruptedException {
-        char[] receivedMessage = pool.take();
-        return receivedMessage;
-    }
 
     @Override
     public char[] encapsulation(char[] data, boolean urgentFlag, char[] urgentData) {

@@ -3,7 +3,9 @@ package application;
 import ec.edu.espol.capas.AplicationLayer;
 import ec.edu.espol.capas.TransporLayer;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -43,7 +45,8 @@ public class Application implements Runnable{
         }
     }
     
-    public boolean sendFile(String path){
+    public boolean sendFile(String path) throws IOException{
+        ArrayList<char[]> segmentos = new ArrayList<>();
         boolean fin = false;
         FileReader fr = openFile(path);
         boolean exito = false;
@@ -51,28 +54,35 @@ public class Application implements Runnable{
             int i = 0;
             while(!fin){
                 try {
-                    char[] data = this.dividirData(fr);
+                    char[] data;
+                    if(i == 0){
+                        data = this.dividirData(fr, i, 1);
+                    } else{
+                        data = this.dividirData(fr, i, 0);
+                    }
                     //char[] data = {'h','o','l','a'};
                     if(data == null){
                         fin = true;
                         fr.close();
                     }else{
-                        this.applicationLayer.getPoolInSuperior().add(data);
+                        segmentos.add(data);
+//                        this.applicationLayer.getPoolInSuperior().add(data);
                         System.out.println(++i);
                     }
                 } catch (IOException ex) {
-                    Logger.getLogger(AplicationLayer.class.getName()).log(Level.SEVERE, null, ex);
-                } catch (InterruptedException ex) {
                     Logger.getLogger(AplicationLayer.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
             exito = true;
         }
+//        segmentos.get(segmentos.size()-1);
+        this.applicationLayer.getPoolInSuperior().addAll(segmentos);
         return exito;
     }
     
-    private char[] dividirData(FileReader fr) throws IOException{
+    private char[] dividirData(FileReader fr, int indice, int flag) throws IOException{
         char[] buffer = new char[dataSize];
+        String mensaje = indice + "|" + flag + "|";
         //char[] buffer = {'h','o','l','a'};
         int charLeidos = 0;
         int x = 1;
@@ -85,7 +95,10 @@ public class Application implements Runnable{
         }
         //charLeidos = fr.read(buffer, n, dataSize);   
         if(charLeidos>0){
-            return buffer;
+            char[] mensajeRetorno = new char[buffer.length + mensaje.length()];
+            System.arraycopy(mensaje.toCharArray(), 0, mensajeRetorno, 0, mensaje.toCharArray().length);
+            System.arraycopy(buffer, 0, mensajeRetorno, mensaje.toCharArray().length, buffer.length);
+            return mensajeRetorno;
         }
         return null;
     }
@@ -126,14 +139,25 @@ public class Application implements Runnable{
                 }
             }
             }).start();
-        new Thread(()->{
-            while(true){
-                try {
-                    System.out.println(Arrays.toString(this.pool.take()));
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+        new Thread(() -> {
+            // Crear el FileWriter para escribir en el archivo
+            FileWriter writer = null;
+            try {
+                writer = new FileWriter("mensaje.txt", true); // true para agregar al final del archivo
+                while (true) {
+                    try {
+                        // Toma un mensaje del pool y lo convierte a String
+                        String mensaje = new String(this.pool.take());
+                        System.out.println(mensaje);
+                        // Escribir el contenido del mensaje en el archivo
+                        writer.write(mensaje);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 }
+            } catch (IOException e) {
+                    Logger.getLogger(Application.class.getName()).log(Level.SEVERE, "Ocurrió un error al escribir en el archivo", e);
             }
-            }).start();
+        }).start();
     }
 }

@@ -47,17 +47,39 @@ public class DataLinkLayer extends Layer{
 
     @Override
     public char[] encapsulation(char[] data) {
-        return data;
+        char[] header = generateHeader(data);
+        // Combinamos el header y los datos en un solo array
+        char[] packet = new char[header.length + data.length];
+        System.arraycopy(header, 0, packet, 0, header.length);
+        System.arraycopy(data, 0, packet, header.length, data.length);
+        return packet;
     }
 
     @Override
     public char[] desencapsulation(char[] data) {
-        return data;
+        // Tamaño fijo del header: 6 (source MAC) + 6 (destination MAC) + longitud de datos (variable)
+        int headerLength = 13; // 12 caracteres
+
+        // Extraemos la parte de los datos excluyendo el header
+        int dataLength = data.length - headerLength;
+        char[] extractedData = new char[dataLength];
+
+        System.arraycopy(data, headerLength, extractedData, 0, dataLength);
+
+        return extractedData;
     }
 
     @Override
     public char[] generateHeader(char[] data) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        String sourceMAC = this.MAC;
+        String destinationMAC = this.physicalLayer.getDataLinkLayer().MAC;
+        int dataLength = data.length;
+
+        // Convertimos la información del header en un String
+        String headerString = sourceMAC + "|" + destinationMAC;
+        
+        char[] header = headerString.toCharArray();
+        return header;
     }
 
     @Override

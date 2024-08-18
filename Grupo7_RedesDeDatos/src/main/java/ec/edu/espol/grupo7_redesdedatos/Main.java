@@ -4,16 +4,17 @@ import application.Application;
 import dispositivos.Cable;
 import dispositivos.Host;
 import dispositivos.Router;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         
-        Host PC1 = new Host("ABC");
-        Host PC2 = new Host("ABC");
-        Router router = new Router("ABC");
+        Host PC1 = new Host("ABCDEF");
+        Host PC2 = new Host("12AF53");
+        Router router = new Router("A6548E");
         Cable cable1 = new Cable();
         Cable cable2 = new Cable();
         

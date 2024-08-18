@@ -1,12 +1,14 @@
 package pool;
 
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 
 public class DataPool<T> {
     private BlockingQueue<T> queue;
-
+    
+    
     public DataPool(int capacity) {
         this.queue = new LinkedBlockingQueue<>(capacity);
     }
@@ -25,5 +27,9 @@ public class DataPool<T> {
     
     public int size(){
         return queue.size();
+    }
+    
+    public void addAll(List<T> lista){
+        queue.addAll(lista);
     }
 }

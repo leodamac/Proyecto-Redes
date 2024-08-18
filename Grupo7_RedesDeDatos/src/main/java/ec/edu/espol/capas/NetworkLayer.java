@@ -70,17 +70,43 @@ public class NetworkLayer extends Layer{
 
     @Override
     public char[] encapsulation(char[] data) {
-        return data;
+        char[] header = generateHeader(data);
+        char[] packet = new char[header.length + data.length];
+        System.arraycopy(header, 0, packet, 0, header.length);
+        System.arraycopy(data, 0, packet, header.length, data.length);
+        
+        return packet;
     }
 
     @Override
     public char[] desencapsulation(char[] data) {
-        return data;
+        // Calculamos la longitud del header:
+        // 15 caracteres (source IP) + 15 caracteres (destination IP) + 1 (delimitador "|") + 1 (delimitador "|")
+        int headerLength = 11 + 1 + 11; // 32 caracteres en total
+
+        // Extraemos la parte de los datos excluyendo el header
+        int dataLength = data.length - headerLength;
+        char[] extractedData = new char[dataLength];
+
+        System.arraycopy(data, headerLength, extractedData, 0, dataLength);
+
+        return extractedData;
     }
 
     @Override
     public char[] generateHeader(char[] data) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        String sourceIP = this.IP;
+        String[] ip = this.IP.split("\\.");
+        String destinationIP = ip[0] + "." + ip[1] + "." + ip[2] + ".1";
+        int dataLength = data.length;
+
+        // Convertimos la información del header en un String
+        String headerString = sourceIP + "|" + destinationIP;
+
+        // Convertimos el String del header a un array de caracteres
+        char[] header = headerString.toCharArray();
+
+        return header;
     }
 
     @Override
