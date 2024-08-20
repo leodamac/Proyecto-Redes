@@ -1,32 +1,43 @@
 package com.mycompany.decision;
 
 import com.fxgraph.cells.HBoxCell;
+import com.fxgraph.cells.ImagenCell;
 import com.fxgraph.edges.Edge;
 import com.fxgraph.graph.Graph;
 import com.fxgraph.graph.ICell;
 import com.fxgraph.graph.Model;
+import com.fxgraph.graph.PannableCanvas;
 import com.fxgraph.layout.ForceDirectedLayout;
 import dispositivos.Cable;
 import dispositivos.Host;
 import dispositivos.Router;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Stack;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.PathTransition;
+import javafx.animation.SequentialTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
 import javafx.scene.control.ProgressBar;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
@@ -36,11 +47,16 @@ import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.LineTo;
+import javafx.scene.shape.MoveTo;
+import javafx.scene.shape.Path;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 public class App extends Application {
         com.mycompany.decision.Graph<Escenario> grafo = null;
@@ -55,32 +71,29 @@ public class App extends Application {
         ProgressBar progressBarTransferencia;
         Label labelProgresoTransferencia;
         long totalBytes = 0;
-
+        Pane bP;
+        ICell[] iDispositivos;
+        Graph graph;
 	@Override
 	public void start(Stage stage) throws Exception {
                 iniciarDispositivos();
+		graph = new Graph();
+                bP = new BorderPane();
+		iDispositivos = populateGraph(graph);
                 
-
-		Graph graph = new Graph();
-		// Add content to graph
-		populateGraph(graph);
-
-		// Layout nodes
-		//AbegoTreeLayout layout = new AbegoTreeLayout(200, 200, Location.Top);
-		//graph.layout(layout);
-                //graph.layout(new RandomLayout());
                 graph.layout(new ForceDirectedLayout());
-		// Configure interaction buttons and behavior
 		graph.getViewportGestures().setPanButton(MouseButton.SECONDARY);
 		graph.getNodeGestures().setDragButton(MouseButton.PRIMARY);
-                BorderPane bP = new BorderPane(graph.getCanvas());
+  
+                bP.getChildren().add(graph.getCanvas());
+
                 bP.setMinSize(800, 600);
                 bP.setPrefSize(800,600);
                 Scene scene = new Scene(bP);
-               
-		// Display the graph
+
 		stage.setScene(scene);
 		stage.show();
+                stage.setOnCloseRequest(eh->{router.shutDown();});
 	}
         
         public static void main(String[] args) {
@@ -88,8 +101,8 @@ public class App extends Application {
         }
         
         public void iniciarDispositivos(){
-            PC1 = new Host("ABCDEF");
-            PC2 = new Host("12AF53");
+            PC1 = new Host("1BCDEF");
+            PC2 = new Host("22AF53");
             router = new Router("A6548E");
             cable1 = new Cable();
             cable2 = new Cable();
@@ -99,39 +112,46 @@ public class App extends Application {
 
             PC1.connectToCable(cable1);
             PC2.connectToCable(cable2);
-            if(this.threadCable != null){
-                this.threadCable.stop();
-            }
-            threadCable = new Thread(router);
-            this.threadCable.start();
+
+            new Thread(router).start();
         }
 
-	private void populateGraph(Graph graph) {
+	private ICell[] populateGraph(Graph graph) {
+            ICell[] dispositivos = new ICell[3];
             final Model model = graph.getModel();
             graph.beginUpdate();
             ICell pc1 = new HBoxCell(dibujarEscenario(new Escenario(PC1)));
+            dispositivos[0] = pc1;
             model.addCell(pc1);
-            ICell pc2 = new HBoxCell(dibujarEscenario(new Escenario(PC2)));
+            ICell pc2 = new HBoxCell(dibujarEscenario(new Escenario(PC2), true));
+            dispositivos[1] = pc2;
             model.addCell(pc2);
             ICell r1 = new HBoxCell(dibujarEscenario(new Escenario(router)));
+            dispositivos[2] = r1;
             model.addCell(r1);
             
             Edge edge1 = new Edge(pc1, r1, false, Color.color(0, 1, 0));
             Edge edge2 = new Edge(pc2, r1, false, Color.color(0, 1, 0));
             model.addEdge(edge1);
             model.addEdge(edge2);
-            
             graph.endUpdate();
+            return dispositivos;
 	}
         
+     public HBox dibujarEscenario(Escenario escenario) {
+            return dibujarEscenario(escenario, false);
+    }
 
-
-    public HBox dibujarEscenario(Escenario escenario) {
+    public HBox dibujarEscenario(Escenario escenario, boolean sinPerdida) {
         
         HBox hBoxEscenario = new HBox();
         hBoxEscenario.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> {
             if (event.getClickCount() == 2) {
-                mostrarSimuladorComputadora(escenario);
+                if(escenario.getDispositivo() instanceof Host){
+                    mostrarSimuladorComputadora(escenario, sinPerdida);
+                }else{
+                    mostrarSimuladorRouter(escenario);
+                }
             }
         });
         VBox datosE = new VBox();
@@ -148,29 +168,80 @@ public class App extends Application {
         
         return hBoxEscenario;
     }
-
-    private void mostrarSimuladorComputadora(Escenario escenario) {
-        escenario.getDispositivo().openApplication("mail");
-        escenario.getDispositivo().openApplication("radio");
+    
+    private void mostrarSimuladorRouter(Escenario escenario) {
+        Stage stage = new Stage();
+        stage.setTitle("Simulador de Router");
+        VBox vBoxSimulador = new VBox(15);
+        vBoxSimulador.setPadding(new Insets(20));
+        vBoxSimulador.setAlignment(Pos.CENTER);
+        vBoxSimulador.setBackground(new Background(new BackgroundFill(Color.LIGHTGRAY, CornerRadii.EMPTY, Insets.EMPTY)));
+        Button titulo = new Button("Simulador de Router");
+        titulo.setFont(Font.font("Arial", 20));
+        titulo.setStyle("-fx-background-color: transparent; -fx-text-fill: #333333; -fx-font-weight: bold;");
+        titulo.setDisable(true);
         
+        ListView<String> listView = new ListView<>();
+        listView.getItems().addAll(router.getNetworkLayer().getIpTable());
+        
+        TableView<NetworkEntry> tableView = new TableView<>();
+        tableView.setTableMenuButtonVisible(false);
+        tableView.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY); 
+
+        TableColumn<NetworkEntry, String> ipColumn = new TableColumn<>("IP Address");
+        ipColumn.setCellValueFactory(new PropertyValueFactory<>("ip"));
+
+        TableColumn<NetworkEntry, String> macColumn = new TableColumn<>("MAC Address");
+        macColumn.setCellValueFactory(new PropertyValueFactory<>("mac"));
+        
+        TableColumn<NetworkEntry, String> nameColumn = new TableColumn<>("Name");
+        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
+        
+        tableView.getColumns().clear();
+        tableView.getColumns().addAll(nameColumn, ipColumn, macColumn);
+
+        // Obtener la lista de IPs y MACs y llenarla en la tabla
+        ObservableList<NetworkEntry> data = FXCollections.observableArrayList();
+        data.add(new NetworkEntry(router.getIp(), router.getMAC(), "Router"));
+        for (int i = 0; i < router.getCables().size(); i++) {
+            String ip = router.getNetworkLayer().getIpTable().get(i+1);
+            String mac = router.getCables().get(i).getMAC();
+            data.add(new NetworkEntry(ip, mac, "PC"));
+        }
+        tableView.setItems(data);
+        
+        
+        vBoxSimulador.getChildren().addAll(titulo,tableView);
+        Scene scene = new Scene(vBoxSimulador, 400, 400);
+        stage.setScene(scene);
+        stage.show();
+    }
+    
+    private Stage mostrarSimuladorComputadora(Escenario escenario, boolean sinPerdida) {
+        application.Application app1 = escenario.getDispositivo().openApplication("mail", sinPerdida);
+        //application.Application app2 = escenario.getDispositivo().openApplication("radio");
+        boolean envio = false;
         TextArea textAreaRecepcion;
         Stage stage = new Stage();
-        stage.setTitle("Simulador de Computadora");
-
+        stage.setTitle("Simulador de Computadora de IP: " + escenario.getDispositivo().getIp());
+        int in1 = Integer.parseInt(escenario.getDispositivo().getMAC().substring(0, 1));
         VBox vBoxSimulador = new VBox(15);
         vBoxSimulador.setPadding(new Insets(20));
         vBoxSimulador.setAlignment(Pos.CENTER);
         vBoxSimulador.setBackground(new Background(new BackgroundFill(Color.LIGHTGRAY, CornerRadii.EMPTY, Insets.EMPTY)));
 
-        Button titulo = new Button("Simulador de Computadora");
+        Button titulo = new Button("Simulador de Computadora de IP: " + escenario.getDispositivo().getIp());
         titulo.setFont(Font.font("Arial", 20));
         titulo.setStyle("-fx-background-color: transparent; -fx-text-fill: #333333; -fx-font-weight: bold;");
         titulo.setDisable(true);
-
+        Label datosEnviados = new Label("Datos enviados: "+app1.getDatosRecibidos());
+        Label datosRecibidos = new Label("Datos recibidos: "+app1.getDatosRecibidos());
+        
         Button btnEnviarArchivo = new Button("Enviar Archivo de Texto", new ImageView(new Image("file_icon.png", 24, 24, true, true)));
         btnEnviarArchivo.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
         btnEnviarArchivo.setOnAction(e -> {
-            enviarArchivoTexto(stage, escenario);});
+            enviarArchivoTexto(stage, escenario, datosEnviados);
+        });
 
         progressBarTransferencia = new ProgressBar(0);
         progressBarTransferencia.setMinWidth(250);
@@ -178,45 +249,69 @@ public class App extends Application {
         labelProgresoTransferencia = new Label("Progreso de Transferencia: 0%");
         labelProgresoTransferencia.setFont(Font.font("Arial", 14));
         textAreaRecepcion = new TextArea();                           
-        actualizarRecepcion(textAreaRecepcion, escenario);
-        
+        Thread recibidor = app1.receiveDataFile(textAreaRecepcion, datosRecibidos);
+        new Thread (()->{
+              while(recibidor.isAlive()){
+                    try {
+                        Thread.sleep(550);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    crearSobre(iDispositivos[in1-1], iDispositivos[2]);
+                    try {
+                        Thread.sleep(550);
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    crearSobre(iDispositivos[2], iDispositivos[in1-1]);
+              }
+        }).start();
         textAreaRecepcion.setMinHeight(100);
         textAreaRecepcion.setEditable(false);
-
+        
         VBox vboxTransferencia = new VBox(10, btnEnviarArchivo, progressBarTransferencia, labelProgresoTransferencia, textAreaRecepcion);
         vboxTransferencia.setAlignment(Pos.CENTER);
 
-        Button btnEmitirAudio = new Button("Emitir Audio", new ImageView(new Image("audio_icon.png", 24, 24, true, true)));
-        btnEmitirAudio.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
-        btnEmitirAudio.setOnAction(e -> emitirAudio());
+        Button saveText = new Button("Guardar Archivo", new ImageView(new Image("save_file.png", 24, 24, true, true)));
+        saveText.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
+        saveText.setOnAction(e -> guardarArchivo(stage, textAreaRecepcion));
 
-        VBox vBoxMain = new VBox(15, titulo, vboxTransferencia, btnEmitirAudio);
+        VBox vBoxMain = new VBox(15, titulo, datosEnviados, datosRecibidos, vboxTransferencia, saveText);
         vBoxMain.setAlignment(Pos.CENTER);
 
-        Scene scene = new Scene(vBoxMain, 400, 400);
+        Scene scene = new Scene(vBoxMain, 500, 500);
         stage.setScene(scene);
+        if(in1 == 1){
+            stage.setX(100);
+        }else{
+            stage.setX(1150);
+        }
+        
+        stage.setY(300);
         stage.show();
+        stage.setOnCloseRequest(eh->{
+            escenario.getDispositivo().shutDown();
+        });
+        
+        return stage;
     }
     
-    private void actualizarRecepcion(TextArea textAreaRecepcion, Escenario escenario) {
-    new Thread(() -> {
-        Thread t = escenario.getDispositivo().getApp(0).receiveDataFile(textAreaRecepcion);
-    }).start();
-    }
 
-    private void enviarArchivoTexto(Stage stage, Escenario escenario) {
+    private void enviarArchivoTexto(Stage stage, Escenario escenario, Label datosEnviados) {
+        
+// Establece el directorio inicial en el FileChooser
+        File currentDirectory = new File(System.getProperty("user.dir"));
         FileChooser fileChooser = new FileChooser();
+        fileChooser.setInitialDirectory(currentDirectory);
         fileChooser.setTitle("Seleccionar Archivo de Texto");
         File file = fileChooser.showOpenDialog(stage);
 
         if (file != null) {
             try {
-                totalBytes = file.length(); // Obtiene el tamaño total del archivo en bytes
-                // Envía el archivo y actualiza el progreso de envío
+                totalBytes = file.length();
                 escenario.getDispositivo().getApp(0).sendFile(file.toString());
 
-                // Supongamos que progresoEnvio se actualiza durante el envío
-                actualizarProgresoEnvio(escenario);
+                actualizarProgresoEnvio(escenario, datosEnviados);
 
                 Alert alert = new Alert(AlertType.INFORMATION);
                 alert.setTitle("Archivo Enviado");
@@ -229,13 +324,12 @@ public class App extends Application {
         }
     }
 
-    private void actualizarProgresoEnvio(Escenario escenario) {
-        // Este método se encarga de actualizar la barra de progreso usando la variable progresoEnvio
-    // Actualiza la barra de progreso y la etiqueta
+    private void actualizarProgresoEnvio(Escenario escenario, Label datosEnviados) {
             Platform.runLater(() -> {
                 double progreso = (double) escenario.getDispositivo().getApp(0).getDatosEnviados() / totalBytes;
                 progressBarTransferencia.setProgress(progreso);
                 labelProgresoTransferencia.setText(String.format("Progreso de Transferencia: %.2f%%", progreso * 100));
+                datosEnviados.setText("Datos enviados: "+escenario.getDispositivo().getApp(0).getDatosEnviados()  + "\nPaquetes Enviados: " + (int)(escenario.getDispositivo().getApp(0).getDatosEnviados()/128));
             });
             
             Platform.runLater(() -> {
@@ -243,12 +337,27 @@ public class App extends Application {
                 progressBarTransferencia.setProgress(progreso);
                 labelProgresoTransferencia.setText(String.format("Progreso de Transferencia: %.2f%%", progreso * 100));
             });
-
-        // Aquí puedes también actualizar la visualización del contenido recibido si lo deseas
-        //Platform.runLater(() -> textAreaRecepcion.appendText("Datos recibidos...\n"));
     }
 
-    private void emitirAudio() {
+    private void guardarArchivo(Stage stage, TextArea textArea){
+        File currentDirectory = new File(System.getProperty("user.dir"));
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setInitialDirectory(currentDirectory);
+        fileChooser.setTitle("Guardar archivo de texto");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Archivos de texto", "*.txt"));
+
+        File file = fileChooser.showSaveDialog(stage);
+        if (file != null) {
+            saveTextToFile(textArea.getText(), file);
+        }
+    }
+    
+    private void saveTextToFile(String content, File file) {
+        try (FileWriter fileWriter = new FileWriter(file)) {
+            fileWriter.write(content);
+        } catch (IOException e) {
+            System.out.println("Error al guardar el archivo: " + e.getMessage());
+        }
     }
     
     public String tipoEscenario(int tipo){
@@ -269,6 +378,43 @@ public class App extends Application {
                 break;
         }
         return stilo;
+    }
+    
+    public void crearSobre(ICell pc1, ICell pc2){
+        Platform.runLater(() -> {
+        ImageView sobrecito = new ImageView(new Image("sobre.png", 50, 50, true, true));
+        sobrecito.setFitWidth(50);
+        sobrecito.setFitHeight(50);
+
+        double startX = graph.getGraphic(pc1).getLayoutX();
+        double startY = graph.getGraphic(pc1).getLayoutY();
+        double endX = graph.getGraphic(pc2).getLayoutX();
+        double endY = graph.getGraphic(pc2).getLayoutY();
+        
+        Path path = new Path();
+        //MoveTo moveToStart = new MoveTo(startX, startY);
+        MoveTo moveToStart = new MoveTo(startX, startY);
+        LineTo lineTo = new LineTo(endX, endY);
+        path.getElements().addAll(moveToStart, lineTo);
+
+        // Crea la transición para mover el sobrecito
+        PathTransition pathTransition = new PathTransition();
+        pathTransition.setRate(1.0); // Velocidad de movimiento
+        pathTransition.setCycleCount(1);
+        pathTransition.setPath(path);
+        pathTransition.setNode(sobrecito);
+        pathTransition.setInterpolator(Interpolator.EASE_BOTH);
+
+        // Animación de desaparición (fade out) al llegar al destino
+        FadeTransition fadeTransition = new FadeTransition(Duration.seconds(1), sobrecito);
+        fadeTransition.setFromValue(1.0);
+        fadeTransition.setToValue(0.0);
+
+        // Ejecutar las animaciones
+        SequentialTransition sequentialTransition = new SequentialTransition(pathTransition, fadeTransition);
+        bP.getChildren().add(sobrecito);
+        sequentialTransition.play();
+        });
     }
 
 }

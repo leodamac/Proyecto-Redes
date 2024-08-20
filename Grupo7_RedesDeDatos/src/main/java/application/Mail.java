@@ -10,8 +10,8 @@ package application;
  */
 public class Mail extends Application{
     
-    public Mail() {
-        super(true);
+    public Mail(boolean sinPerdida) {
+        super(true, sinPerdida);
     }
     
 }

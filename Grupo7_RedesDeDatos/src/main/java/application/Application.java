@@ -3,15 +3,14 @@ package application;
 import ec.edu.espol.capas.AplicationLayer;
 import ec.edu.espol.capas.TransporLayer;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.PriorityQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Platform;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
-import pool.DataPool;
 import pool.Sender;
 
 public class Application implements Runnable{
@@ -21,39 +20,54 @@ public class Application implements Runnable{
     public static String path;
     private int datosEnviados;
     private int datosRecibidos;
-//    private int contador;
-    public DataPool<String> pool;
+
     public PriorityQueue<String> mensajesAlFinalDeTodo = new PriorityQueue<>((o1, o2) -> {
-        int id1 = Integer.parseInt(o1.split("\\|")[0]);
-        int id2 = Integer.parseInt(o2.split("\\|")[0]);
+        int id1 = -1;
+        try{
+            id1 = Integer.parseInt(o1.split("\\|")[0]);
+        } catch (NumberFormatException ex){
+        }
+
+        int id2 = -1;
+        try{
+            id2 = Integer.parseInt(o2.split("\\|")[0]);
+        } catch (NumberFormatException ex){
+        }
         return id1 - id2;
     });
     private Thread t = null;
     public String dataF = "";
+    private volatile boolean close = false;
+    private volatile boolean sendData = false;
+    private volatile boolean sinPerdida = true;
     
-    public Application(boolean connectionOriented) {
+    public Application(boolean connectionOriented, boolean sinPerdida) {
         this.applicationLayer = new AplicationLayer(connectionOriented);
         this.transportLayer = new TransporLayer(connectionOriented);
         this.transportLayer.setSourcePort(8080);
         this.transportLayer.setDestinationPort(10);
         this.applicationLayer.conectTransportLayer(transportLayer);
         this.transportLayer.connectToAplicationLayer(applicationLayer);
-        this.pool = new DataPool<>(20);
         this.datosEnviados = 0;
         this.datosRecibidos = 0;
+        this.sinPerdida = sinPerdida;
     }
-
+    
+    public Application(boolean connectionOriented) {
+        this(connectionOriented, false);
+    }
+    
     public Thread getT() {
         return t;
     }
-
-    public String getData(){
-        try {
-            return this.pool.take();
-        } catch (InterruptedException ex) {
-            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        return "";
+    
+    public void close(){
+        close = true;
+        this.applicationLayer.close();
+    }
+    
+    public boolean isClosed(){
+        return this.close;
     }
 
     public int getDatosEnviados() {
@@ -73,31 +87,33 @@ public class Application implements Runnable{
     }
 
     public boolean sendFile(String path) throws IOException{
+        sendData = true;
         SendFile sf = new SendFile(path);
         new Thread(sf).start();
         return true;
     }
     
-    public Thread receiveDataFile(TextArea textArea) {
-        ReceiveFile rf = new ReceiveFile(textArea);
+    public Thread receiveDataFile(TextArea textArea, Label datosRecibidos) {
+        ReceiveFile rf = new ReceiveFile(textArea, datosRecibidos);
         Thread t = new Thread(rf);
         t.start();
         return t;
     }
-
+    
     @Override
     public void run() {
-        Sender senderAppToTrans = new Sender(applicationLayer,transportLayer);
-        Sender senderTransToApp = new Sender(transportLayer, applicationLayer);
+        
+        Sender senderAppToTrans = new Sender(applicationLayer,transportLayer, sinPerdida);
+        Sender senderTransToApp = new Sender(transportLayer, applicationLayer, sinPerdida);
 
-        Sender senderTransToNetw = new Sender(transportLayer, transportLayer.getNetworkLayer());
-        Sender senderNetToTrans = new Sender(transportLayer.getNetworkLayer(),transportLayer);
+        Sender senderTransToNetw = new Sender(transportLayer, transportLayer.getNetworkLayer(), sinPerdida);
+        Sender senderNetToTrans = new Sender(transportLayer.getNetworkLayer(),transportLayer, sinPerdida);
 
-        Sender senderNetToDat = new Sender(transportLayer.getNetworkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer());
-        Sender senderDatToNet = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer());
+        Sender senderNetToDat = new Sender(transportLayer.getNetworkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer(), sinPerdida);
+        Sender senderDatToNet = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer(), sinPerdida);
 
-        Sender senderDatToPhy = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer());
-        Sender senderPhyToDat = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(),transportLayer.getNetworkLayer().getDataLinkLayer());
+        Sender senderDatToPhy = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(), sinPerdida);
+        Sender senderPhyToDat = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(),transportLayer.getNetworkLayer().getDataLinkLayer(), sinPerdida);
 
         new Thread(senderAppToTrans).start();
         new Thread(senderTransToApp).start();
@@ -107,39 +123,118 @@ public class Application implements Runnable{
         new Thread(senderDatToNet).start();
         new Thread(senderDatToPhy).start();
         new Thread(senderPhyToDat).start();
+        new Thread(()->{
+            while(!isClosed()){
+                
+            }
+            senderAppToTrans.finish();
+            senderTransToApp.finish();
+            senderTransToNetw.finish();
+            senderNetToTrans.finish();
+            senderNetToDat.finish();
+            senderDatToNet.finish();
+            senderDatToPhy.finish();
+            senderPhyToDat.finish();
+        }).start();
     }
+    
     
     class ReceiveFile implements Runnable {
         private TextArea textArea;
-
-        public ReceiveFile(TextArea textArea) {
+        private Label labelDatosRecibidos;
+        public ReceiveFile(TextArea textArea, Label datosRecibidos) {
             this.textArea = textArea;
+            this.labelDatosRecibidos = datosRecibidos;
         }
 
         @Override
         public void run() {
             boolean fin = false;
+            int indiceFinal = -1;
+            boolean salioF = false;
+            int llegados = 0;
             while (!fin) {
                 try {
-                    String mensajeFull = new String(applicationLayer.getPoolInInferior().take());
-                    if (mensajeFull.equals("f")) {
+                    char[] seg = applicationLayer.getPoolInInferior().take();
+                    llegados++;
+                    if(seg != null){
+                        String mensajeFull = new String(seg);
+                        System.out.println("\n***" + mensajeFull + "***\n" + mensajesAlFinalDeTodo.size());
+                        if (seg.length == 1 && seg[0] == 'f') {
+                            salioF = true;
+                        }else if(!mensajeFull.contains("|")){
+                            try{
+                                indiceFinal = Integer.parseInt(mensajeFull);
+                            }catch(Exception e){
+                                System.out.println(e);
+                            }
+                        } else {
+                            mensajesAlFinalDeTodo.offer(mensajeFull);
+                        }
+                        System.out.println("\n***" + indiceFinal + "=" + mensajesAlFinalDeTodo.size() + "***\n" );
+                        if(salioF && indiceFinal == mensajesAlFinalDeTodo.size()){
+                            fin = true;
+                        }
+                    }else{
+                        boolean tomo = false;
+                        int tiempo = 1;
+                        int tiempoFinal = 7;
+                        
+                        while(!tomo && tiempo < tiempoFinal){
+                            if(sendData){
+                                tiempoFinal = 12;
+                                sendData = false;
+                            }
+                            System.out.println("Esperando " + tiempo + " segundos");
+                            seg = applicationLayer.getPoolInInferior().take(tiempo++);
+                            if(seg == null){
+                                if(llegados == indiceFinal){
+                                    fin = true;
+                                }
+                            }else{
+                                tomo = true;
+                                String mensajeFull = new String(seg);
+                                System.out.println("\n***" + mensajeFull + "***\n" + mensajesAlFinalDeTodo.size());
+                                if (seg.length == 1 && seg[0] == 'f') {
+                                    salioF = true;
+                                }else if(!mensajeFull.contains("|")){
+                                    indiceFinal = Integer.parseInt(mensajeFull);
+                                } else {
+                                    mensajesAlFinalDeTodo.offer(mensajeFull);
+                                }
+                                System.out.println("\n***" + indiceFinal + "=" + mensajesAlFinalDeTodo.size() + "***\n" );
+                                if(salioF && indiceFinal == mensajesAlFinalDeTodo.size()){
+                                    fin = true;
+                                }
+                            }
+                        }
+                        if(!tomo){
+                            fin = true;
+                        }
+                    }
+                    
+                    if(close){
                         fin = true;
-                    } else {
-                        mensajesAlFinalDeTodo.offer(mensajeFull);
                     }
                 } catch (InterruptedException ex) {
                     fin = true;
                 }
             }
-
-            while (!mensajesAlFinalDeTodo.isEmpty()) {
-                String mensaje = mensajesAlFinalDeTodo.poll();
-                String contenido = mensaje.split("\\|")[1];
-                Platform.runLater(() -> {
-                    textArea.appendText(contenido);
-                });
-                datosRecibidos += contenido.length();
+            if(!close){
+                while (!mensajesAlFinalDeTodo.isEmpty()) {
+                    String mensaje = mensajesAlFinalDeTodo.poll();
+                    String contenido = mensaje.split("\\|")[1];
+                    System.out.println(contenido);
+                    datosRecibidos += contenido.length();
+                    Platform.runLater(() -> {
+                        textArea.appendText(contenido);
+                        labelDatosRecibidos.setText("Datos recividos: " + datosRecibidos + "\nPaquetes Recibidos: " + (int)(datosRecibidos/dataSize));
+                    });
+                    
+                }
             }
+            
+            System.out.println("Paró de recibir datos.");
         }
     }
     
@@ -171,9 +266,8 @@ public class Application implements Runnable{
         ArrayList<char[]> segmentos = new ArrayList<>();
         boolean fin = false;
         FileReader fr = openFile(path);
-        boolean exito = false;
+        int i = 0;
         if(fr != null){
-            int i = 0;
             datosEnviados = 0;
             while(!fin){
                 try {
@@ -182,32 +276,42 @@ public class Application implements Runnable{
                         fin = true;
                         fr.close();
                     }else{
+                        System.out.println(i++);
                         segmentos.add(data);
-                        System.out.println(++i);
+                        
                     }
                 } catch (IOException ex) {
                     Logger.getLogger(AplicationLayer.class.getName()).log(Level.SEVERE, null, ex);
                 }
             }
-            exito = true;
+        }else{
+            return false;
         }
-
+        System.out.println("segmentosss");
         for(char[] s: segmentos){
             try {
-                applicationLayer.getPoolInSuperior().add(s);
+                System.out.println(s);
+                if(!applicationLayer.isClosed()){
+                    applicationLayer.getPoolInSuperior().add(s);
+                }else{
+                    return false;
+                }
             } catch (InterruptedException ex) {
                 Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
-        char[] f = new char[1];
-        f[0] = 'f';
-        try {
-            applicationLayer.getPoolInSuperior().add(f);
-        } catch (InterruptedException ex) {
-            Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+        if(!applicationLayer.isClosed()){
+            String fString = "f";
+            try {
+                applicationLayer.getPoolInSuperior().add(fString.toCharArray());
+                fString = "" + i;
+                applicationLayer.getPoolInSuperior().add(fString.toCharArray());
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+            }
         }
         
-        return exito;
+        return true;
     }
     
     private char[] dividirData(FileReader fr, int indice) throws IOException{
@@ -222,15 +326,11 @@ public class Application implements Runnable{
                 charLeidos++;
             }
         }
-
         if(charLeidos>0){
-            datosEnviados += charLeidos;
-            char[] cr = ("|"+String.valueOf(charLeidos)).toCharArray();
-            char[] mensajeRetorno = new char[buffer.length + cr.length + mensaje.length()];
-            System.arraycopy(mensaje.toCharArray(), 0, mensajeRetorno, 0, mensaje.toCharArray().length);
-            System.arraycopy(buffer, 0, mensajeRetorno, mensaje.toCharArray().length, buffer.length);
-            System.arraycopy(cr, 0, mensajeRetorno, mensaje.toCharArray().length + buffer.length, cr.length);
-            return mensajeRetorno;
+            String payLoad = new String(buffer);
+            String m = mensaje + payLoad + "|"+String.valueOf(charLeidos);
+            datosEnviados += payLoad.length();
+            return m.toCharArray();
         }
         return null;
     }

@@ -21,9 +21,10 @@ import java.util.Map;
 public abstract class  Dispositivo {
     DataLinkLayer dataLinkLayer; //Simula tarjeta de red
     NetworkLayer networkLayer;
-    private String MAC;
+    String MAC;
     private List<Application> aplicaciones;
     Map<String, Thread> procesos;
+    volatile boolean on = false;
 
     public Dispositivo(String MAC) {
         this.MAC = MAC;
@@ -31,7 +32,14 @@ public abstract class  Dispositivo {
         networkLayer = new NetworkLayer();
         aplicaciones = new LinkedList();
         this.procesos = new HashMap<>();
+        this.on = true;
     }
+
+    public NetworkLayer getNetworkLayer() {
+        return networkLayer;
+    }
+    
+    
     
     public Thread getProceso(String name){
         return this.procesos.get(name);
@@ -56,25 +64,31 @@ public abstract class  Dispositivo {
     public Application getApp(int indice){
         return this.aplicaciones.get(indice);
     }
-    public Application openApplication(String name){
+    
+    public void shutDown(){
+        for(Application app: this.aplicaciones){
+            app.close();
+        }
+        this.on = false;
+    }
+    
+    public Application openApplication(String name, boolean sinPerdida){
         Application app = null;
-        Thread t;
+        Thread t = null;
         switch(name){
                 case "mail":
-                    app = new Mail();
-                    t = new Thread(app);
-                    procesos.put(name, t);
-                    t.start();
-                    addApp(app);
-                    break;
-                case "radio":
-                    app = new Radio();
+                    app = new Mail(sinPerdida);
                     t = new Thread(app);
                     procesos.put(name, t);
                     t.start();
                     addApp(app);
                     break;
                 default:
+                    app = new Radio();
+                    t = new Thread(app);
+                    procesos.put(name, t);
+                    t.start();
+                    addApp(app);
                     break;
         }
         app.getTransportLayer().connectToNetworkLayer(networkLayer);

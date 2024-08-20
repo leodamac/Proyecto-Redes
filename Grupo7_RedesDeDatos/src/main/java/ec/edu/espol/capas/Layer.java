@@ -17,11 +17,11 @@ public abstract class Layer {
         this.level = level;
         this.dataGram = dataGram;
         
-        this.poolInSuperior = new DataPool(100);
-        this.poolOutSuperior = new DataPool(100);
+        this.poolInSuperior = new DataPool(1000);
+        this.poolOutSuperior = new DataPool(1000);
 
-        this.poolInInferior = new DataPool(100);
-        this.poolOutInferior = new DataPool(100);
+        this.poolInInferior = new DataPool(1000);
+        this.poolOutInferior = new DataPool(1000);
     }
 
     public abstract char[] encapsulation(char[] data, boolean urgentFlag, char[] urgentData);

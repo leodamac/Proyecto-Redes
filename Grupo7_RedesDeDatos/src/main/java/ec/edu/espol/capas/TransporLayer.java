@@ -28,6 +28,10 @@ public class TransporLayer extends Layer{
         }
     }
     
+    public boolean isClosed(){
+        return this.getAplicationLayer().isClosed();
+    }
+    
     public NetworkLayer getNetworkLayer(){
         return this.networkLayer;
     }
@@ -141,7 +145,7 @@ public class TransporLayer extends Layer{
    
         // Verificar si los checksums coinciden
         if (!Arrays.equals(calculatedChecksum, receivedChecksum)) {
-            return null;
+            return data;
         }
         return data;
     }

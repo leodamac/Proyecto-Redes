@@ -11,9 +11,11 @@ import pool.Sender;
 public class Router extends Dispositivo implements Runnable{
     List<Cable> cables;
     
+    private String IP = "192.168.1.1";
     public Router(String MAC) {  
         super(MAC);
-        this.networkLayer.setIP("192.168.1.1");
+        this.networkLayer.setIP(IP);
+        this.networkLayer.getIpTable().add(IP);
         this.dataLinkLayer.conectToNetworkLayer(networkLayer);
         this.networkLayer.conectToDataLinkLayer(dataLinkLayer);
         this.cables = new LinkedList();
@@ -28,14 +30,30 @@ public class Router extends Dispositivo implements Runnable{
     public void disconnectCable(Cable cable){
         this.cables.remove(cable);
     }
+    
+    
 
     @Override
     public void run() {
+        
         Sender senderPhy1ToPhy2 = new Sender(this.cables.get(0).getPhysicalLayer(),this.cables.get(1).getPhysicalLayer());
         Sender senderPhy2ToPhy1 = new Sender(this.cables.get(1).getPhysicalLayer(),this.cables.get(0).getPhysicalLayer());
         
         new Thread(senderPhy1ToPhy2).start();
         new Thread(senderPhy2ToPhy1).start();
+        
+        new Thread(()->{
+            while(this.on){
+            }
+            senderPhy1ToPhy2.finish();
+            senderPhy2ToPhy1.finish();
+            
+        }).start();
+        
+    }
+
+    public List<Cable> getCables() {
+        return this.cables;
     }
     
     

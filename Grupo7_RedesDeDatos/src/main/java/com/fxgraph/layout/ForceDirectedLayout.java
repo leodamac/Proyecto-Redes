@@ -29,12 +29,12 @@ public class ForceDirectedLayout implements Layout {
     @Override
     public void execute(Graph graph) {
         Map<ICell, Point> positions = new HashMap<>();
-        Random random = new Random(8);
+        Random random = new Random(12);
 
         // Initialize positions randomly
-        System.out.println(random.nextDouble());
+        //System.out.println(random.nextDouble());
         for (ICell cell : graph.getModel().getAllCells()) {
-            positions.put(cell, new Point(random.nextDouble() * width, random.nextDouble() * height));
+            positions.put(cell, new Point(width/2 - 25, random.nextDouble() * height-40));
             //positions.put(cell, new Point((k/100), (k/100)));
 
         }

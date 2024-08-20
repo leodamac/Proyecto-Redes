@@ -41,7 +41,7 @@
       <configuration>
         <archive>
           <manifest>
-            <mainClass>com.mycompany.decision.GUI</mainClass>
+            <mainClass>ec.edu.espol.grupo7_redesdedatos.GUI</mainClass>
           </manifest>
         </archive>
         <descriptorRefs>

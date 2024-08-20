@@ -1,11 +1,6 @@
 package dispositivos;
 
-import application.Application;
-import application.Mail;
-import application.Radio;
-import ec.edu.espol.capas.*;
 import java.util.HashMap;
-import java.util.Map;
 
 public class Host extends Dispositivo{
     Cable cable;
@@ -21,6 +16,7 @@ public class Host extends Dispositivo{
         this.dataLinkLayer.conectToNetworkLayer(networkLayer);
         this.dataLinkLayer.conectToPhysicalLayer(this.cable.getPhysicalLayer());
         this.networkLayer.conectToDataLinkLayer(dataLinkLayer);
+        cable.setMAC(MAC);
     }
     
 

@@ -3,6 +3,7 @@ package pool;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 
 public class DataPool<T> {
@@ -14,11 +15,19 @@ public class DataPool<T> {
     }
 
     public void add(T data) throws InterruptedException {
-        queue.put(data);
+        queue.add(data);
     }
 
     public T take() throws InterruptedException {
-        return queue.take();
+        T item = queue.poll(1, TimeUnit.SECONDS);
+        //return queue.take();
+        return item;
+    }
+    
+    public T take(int tSeconds) throws InterruptedException {
+        T item = queue.poll(tSeconds, TimeUnit.SECONDS);
+        //return queue.take();
+        return item;
     }
 
     public boolean isEmpty() {
@@ -32,4 +41,6 @@ public class DataPool<T> {
     public void addAll(List<T> lista){
         queue.addAll(lista);
     }
+    
+    
 }

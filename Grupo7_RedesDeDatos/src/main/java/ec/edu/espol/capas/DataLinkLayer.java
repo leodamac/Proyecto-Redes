@@ -18,6 +18,15 @@ public class DataLinkLayer extends Layer{
     public NetworkLayer getNetworkLayer() {
         return networkLayer;
     }
+
+    public String getMAC() {
+        return MAC;
+    }
+
+    public String getIP() {
+        return IP;
+    }
+    
     
     public boolean conectToPhysicalLayer(PhysicalLayer physicalLayer){
         if(physicalLayer == null){
@@ -25,6 +34,10 @@ public class DataLinkLayer extends Layer{
         }
         this.physicalLayer = physicalLayer;
         return true;
+    }
+    
+    public boolean isClosed(){
+        return this.getNetworkLayer().getTransportLayer().getAplicationLayer().isClosed();
     }
     
     public boolean conectToNetworkLayer(NetworkLayer networkLayer){

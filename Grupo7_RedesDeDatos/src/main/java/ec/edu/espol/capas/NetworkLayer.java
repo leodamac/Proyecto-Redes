@@ -23,6 +23,10 @@ public class NetworkLayer extends Layer{
         return transportLayer;
     }
     
+    public String getMAC(){
+        return dataLinkLayer.getMAC();
+    }
+    
     public void setIP(String IP){
         this.IP = IP;
     }
@@ -30,10 +34,18 @@ public class NetworkLayer extends Layer{
     public String getIP(){
         return this.IP;
     }
+
+    public List<String> getIpTable() {
+        return ipTable;
+    }
+    
+    public boolean isClosed(){
+        return this.getTransportLayer().getAplicationLayer().isClosed();
+    }
     
     public String generateIP(){
         String[] ip = this.IP.split("\\.");
-        String newIP = ip[0] + "." + ip[1] + "." + ip[2] + "." + String.valueOf(this.ipTable.size() + 2);
+        String newIP = ip[0] + "." + ip[1] + "." + ip[2] + "." + String.valueOf(this.ipTable.size() + 1);
         this.ipTable.add(newIP);
         return newIP;
     }
