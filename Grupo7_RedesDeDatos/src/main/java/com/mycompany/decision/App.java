@@ -1,12 +1,10 @@
 package com.mycompany.decision;
 
 import com.fxgraph.cells.HBoxCell;
-import com.fxgraph.cells.ImagenCell;
 import com.fxgraph.edges.Edge;
 import com.fxgraph.graph.Graph;
 import com.fxgraph.graph.ICell;
 import com.fxgraph.graph.Model;
-import com.fxgraph.graph.PannableCanvas;
 import com.fxgraph.layout.ForceDirectedLayout;
 import dispositivos.Cable;
 import dispositivos.Host;
@@ -14,6 +12,7 @@ import dispositivos.Router;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.animation.FadeTransition;
@@ -27,7 +26,6 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
-import javafx.scene.canvas.Canvas;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -40,8 +38,10 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
@@ -55,7 +55,9 @@ import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
 public class App extends Application {
@@ -67,15 +69,15 @@ public class App extends Application {
         Cable cable1;
         Cable cable2;
         Thread threadCable;
+        Stage stage;
         
-        ProgressBar progressBarTransferencia;
-        Label labelProgresoTransferencia;
         long totalBytes = 0;
         Pane bP;
         ICell[] iDispositivos;
         Graph graph;
 	@Override
 	public void start(Stage stage) throws Exception {
+                this.stage = stage;
                 iniciarDispositivos();
 		graph = new Graph();
                 bP = new BorderPane();
@@ -89,6 +91,7 @@ public class App extends Application {
 
                 bP.setMinSize(800, 600);
                 bP.setPrefSize(800,600);
+                bP.setBackground(new Background(new BackgroundFill(Color.LIGHTGRAY, CornerRadii.EMPTY, Insets.EMPTY)));
                 Scene scene = new Scene(bP);
 
 		stage.setScene(scene);
@@ -165,12 +168,15 @@ public class App extends Application {
         String estilo = tipoEscenario(0);
         hBoxEscenario.setStyle(estilo);
         
-        
         return hBoxEscenario;
     }
     
     private void mostrarSimuladorRouter(Escenario escenario) {
         Stage stage = new Stage();
+        stage.initModality(Modality.NONE);
+        stage.initOwner(this.stage);
+        stage.initStyle(StageStyle.UTILITY);
+        
         stage.setTitle("Simulador de Router");
         VBox vBoxSimulador = new VBox(15);
         vBoxSimulador.setPadding(new Insets(20));
@@ -210,7 +216,6 @@ public class App extends Application {
         }
         tableView.setItems(data);
         
-        
         vBoxSimulador.getChildren().addAll(titulo,tableView);
         Scene scene = new Scene(vBoxSimulador, 400, 400);
         stage.setScene(scene);
@@ -218,11 +223,20 @@ public class App extends Application {
     }
     
     private Stage mostrarSimuladorComputadora(Escenario escenario, boolean sinPerdida) {
+        ProgressBar progressBarTransferencia;
+        Label labelProgresoTransferencia;
+        Button actualizarConexionButton = new Button("Volver a conectar");
+        
         application.Application app1 = escenario.getDispositivo().openApplication("mail", sinPerdida);
         //application.Application app2 = escenario.getDispositivo().openApplication("radio");
+        
         boolean envio = false;
         TextArea textAreaRecepcion;
         Stage stage = new Stage();
+        stage.initModality(Modality.NONE);
+        stage.initOwner(this.stage);
+        stage.initStyle(StageStyle.UTILITY);
+        
         stage.setTitle("Simulador de Computadora de IP: " + escenario.getDispositivo().getIp());
         int in1 = Integer.parseInt(escenario.getDispositivo().getMAC().substring(0, 1));
         VBox vBoxSimulador = new VBox(15);
@@ -231,27 +245,53 @@ public class App extends Application {
         vBoxSimulador.setBackground(new Background(new BackgroundFill(Color.LIGHTGRAY, CornerRadii.EMPTY, Insets.EMPTY)));
 
         Button titulo = new Button("Simulador de Computadora de IP: " + escenario.getDispositivo().getIp());
-        titulo.setFont(Font.font("Arial", 20));
+        titulo.setFont(Font.font("Arial", 15));
         titulo.setStyle("-fx-background-color: transparent; -fx-text-fill: #333333; -fx-font-weight: bold;");
         titulo.setDisable(true);
         Label datosEnviados = new Label("Datos enviados: "+app1.getDatosRecibidos());
         Label datosRecibidos = new Label("Datos recibidos: "+app1.getDatosRecibidos());
-        
-        Button btnEnviarArchivo = new Button("Enviar Archivo de Texto", new ImageView(new Image("file_icon.png", 24, 24, true, true)));
-        btnEnviarArchivo.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
-        btnEnviarArchivo.setOnAction(e -> {
-            enviarArchivoTexto(stage, escenario, datosEnviados);
-        });
 
         progressBarTransferencia = new ProgressBar(0);
         progressBarTransferencia.setMinWidth(250);
 
         labelProgresoTransferencia = new Label("Progreso de Transferencia: 0%");
         labelProgresoTransferencia.setFont(Font.font("Arial", 14));
-        textAreaRecepcion = new TextArea();                           
-        Thread recibidor = app1.receiveDataFile(textAreaRecepcion, datosRecibidos);
+        
+        Button btnEnviarArchivo = new Button("Enviar Archivo de Texto", new ImageView(new Image("file_icon.png", 24, 24, true, true)));
+        btnEnviarArchivo.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+        btnEnviarArchivo.setOnAction(e -> {
+            enviarArchivoTexto(stage, escenario, datosEnviados, progressBarTransferencia, labelProgresoTransferencia);
+        });
+        
+        textAreaRecepcion = new TextArea();   
+        
+                textAreaRecepcion.setOnDragOver(event -> {
+            if (event.getGestureSource() != textAreaRecepcion && event.getDragboard().hasFiles()) {
+                event.acceptTransferModes(TransferMode.COPY);
+            }
+            event.consume();
+        });
+
+        textAreaRecepcion.setOnDragDropped(event -> {
+            Dragboard db = event.getDragboard();
+            boolean success = false;
+            if (db.hasFiles()) {
+                File file = db.getFiles().get(0);
+                try {
+                    String content = new String(Files.readAllBytes(file.toPath()));
+                    textAreaRecepcion.setText(content);
+                    success = true;
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            event.setDropCompleted(success);
+            event.consume();
+        });
+        
+        app1.receiveDataFile(textAreaRecepcion, datosRecibidos);
         new Thread (()->{
-              while(recibidor.isAlive()){
+              while(app1.getRecibidorThread().isAlive()){
                     try {
                         Thread.sleep(550);
                     } catch (InterruptedException ex) {
@@ -266,6 +306,28 @@ public class App extends Application {
                     crearSobre(iDispositivos[2], iDispositivos[in1-1]);
               }
         }).start();
+        
+        actualizarConexionButton.setOnAction(e -> {
+            if(!app1.getRecibidorThread().isAlive()){
+                app1.receiveDataFile(textAreaRecepcion, datosRecibidos);
+                new Thread (()->{
+                    while(app1.getRecibidorThread().isAlive()){
+                          try {
+                              Thread.sleep(550);
+                          } catch (InterruptedException ex) {
+                              Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
+                          }
+                          crearSobre(iDispositivos[in1-1], iDispositivos[2]);
+                          try {
+                              Thread.sleep(550);
+                          } catch (InterruptedException ex) {
+                              Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
+                          }
+                          crearSobre(iDispositivos[2], iDispositivos[in1-1]);
+                    }
+              }).start();
+            }
+            });
         textAreaRecepcion.setMinHeight(100);
         textAreaRecepcion.setEditable(false);
         
@@ -276,30 +338,35 @@ public class App extends Application {
         saveText.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
         saveText.setOnAction(e -> guardarArchivo(stage, textAreaRecepcion));
 
-        VBox vBoxMain = new VBox(15, titulo, datosEnviados, datosRecibidos, vboxTransferencia, saveText);
-        vBoxMain.setAlignment(Pos.CENTER);
-
-        Scene scene = new Scene(vBoxMain, 500, 500);
-        stage.setScene(scene);
-        if(in1 == 1){
-            stage.setX(100);
-        }else{
-            stage.setX(1150);
-        }
+        vBoxSimulador.getChildren().addAll(titulo, datosEnviados, datosRecibidos, vboxTransferencia, saveText, actualizarConexionButton);
+        vBoxSimulador.setAlignment(Pos.CENTER);
         
-        stage.setY(300);
-        stage.show();
         stage.setOnCloseRequest(eh->{
             escenario.getDispositivo().shutDown();
         });
+        Scene scene = new Scene(vBoxSimulador, 500, 550);
+        stage.setScene(scene);
+        stage.setOnShown(event -> {
+            if(in1 == 1){
+                stage.setX(this.stage.getX() + this.stage.getWidth());
+            } else {
+                stage.setX(this.stage.getX() - stage.getWidth());
+            }
+            stage.setY(this.stage.getY());
+        });
+        stage.setOnCloseRequest(eh->{
+            escenario.getDispositivo().shutDown();
+        });
+        
+        stage.show();
+        
         
         return stage;
     }
     
 
-    private void enviarArchivoTexto(Stage stage, Escenario escenario, Label datosEnviados) {
-        
-// Establece el directorio inicial en el FileChooser
+    private void enviarArchivoTexto(Stage stage, Escenario escenario, Label datosEnviados, ProgressBar progressBarTransferencia, Label labelProgresoTransferencia) {
+        // Establece el directorio inicial en el FileChooser
         File currentDirectory = new File(System.getProperty("user.dir"));
         FileChooser fileChooser = new FileChooser();
         fileChooser.setInitialDirectory(currentDirectory);
@@ -310,8 +377,11 @@ public class App extends Application {
             try {
                 totalBytes = file.length();
                 escenario.getDispositivo().getApp(0).sendFile(file.toString());
-
-                actualizarProgresoEnvio(escenario, datosEnviados);
+                new Thread (()->{
+                    while(escenario.getDispositivo().getApp(0).getEnviadorThread().isAlive()){
+                        actualizarProgresoEnvio(escenario, datosEnviados, progressBarTransferencia, labelProgresoTransferencia);
+                    }
+                }).start();
 
                 Alert alert = new Alert(AlertType.INFORMATION);
                 alert.setTitle("Archivo Enviado");
@@ -324,18 +394,13 @@ public class App extends Application {
         }
     }
 
-    private void actualizarProgresoEnvio(Escenario escenario, Label datosEnviados) {
+    private void actualizarProgresoEnvio(Escenario escenario, Label datosEnviados, ProgressBar progressBarTransferencia, Label labelProgresoTransferencia) {
             Platform.runLater(() -> {
-                double progreso = (double) escenario.getDispositivo().getApp(0).getDatosEnviados() / totalBytes;
+                int dEnviados = escenario.getDispositivo().getApp(0).getDatosEnviados();
+                double progreso = ((double)  (dEnviados / totalBytes)) > 100 ? (double)100:(double) (dEnviados/ totalBytes);
                 progressBarTransferencia.setProgress(progreso);
                 labelProgresoTransferencia.setText(String.format("Progreso de Transferencia: %.2f%%", progreso * 100));
                 datosEnviados.setText("Datos enviados: "+escenario.getDispositivo().getApp(0).getDatosEnviados()  + "\nPaquetes Enviados: " + (int)(escenario.getDispositivo().getApp(0).getDatosEnviados()/128));
-            });
-            
-            Platform.runLater(() -> {
-                double progreso = (double)1;
-                progressBarTransferencia.setProgress(progreso);
-                labelProgresoTransferencia.setText(String.format("Progreso de Transferencia: %.2f%%", progreso * 100));
             });
     }
 

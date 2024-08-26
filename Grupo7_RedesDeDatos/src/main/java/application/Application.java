@@ -5,6 +5,7 @@ import ec.edu.espol.capas.TransporLayer;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.PriorityQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -18,8 +19,8 @@ public class Application implements Runnable{
     private TransporLayer transportLayer;
     private final int dataSize = 128;
     public static String path;
-    private int datosEnviados;
-    private int datosRecibidos;
+    private volatile int datosEnviados;
+    private volatile int datosRecibidos;
 
     public PriorityQueue<String> mensajesAlFinalDeTodo = new PriorityQueue<>((o1, o2) -> {
         int id1 = -1;
@@ -35,7 +36,8 @@ public class Application implements Runnable{
         }
         return id1 - id2;
     });
-    private Thread t = null;
+    private Thread recibidorThread = null;
+    private Thread enviadorThread = null;
     public String dataF = "";
     private volatile boolean close = false;
     private volatile boolean sendData = false;
@@ -57,10 +59,7 @@ public class Application implements Runnable{
         this(connectionOriented, false);
     }
     
-    public Thread getT() {
-        return t;
-    }
-    
+   
     public void close(){
         close = true;
         this.applicationLayer.close();
@@ -86,18 +85,25 @@ public class Application implements Runnable{
         return transportLayer;
     }
 
-    public boolean sendFile(String path) throws IOException{
+    public void sendFile(String path) throws IOException{
         sendData = true;
         SendFile sf = new SendFile(path);
-        new Thread(sf).start();
-        return true;
+        enviadorThread = new Thread(sf);
+        enviadorThread.start();
     }
     
-    public Thread receiveDataFile(TextArea textArea, Label datosRecibidos) {
+    public void receiveDataFile(TextArea textArea, Label datosRecibidos) {
         ReceiveFile rf = new ReceiveFile(textArea, datosRecibidos);
-        Thread t = new Thread(rf);
-        t.start();
-        return t;
+        recibidorThread = new Thread(rf);
+        recibidorThread.start();
+    }
+
+    public Thread getRecibidorThread() {
+        return recibidorThread;
+    }
+
+    public Thread getEnviadorThread() {
+        return enviadorThread;
     }
     
     @Override
@@ -149,6 +155,7 @@ public class Application implements Runnable{
 
         @Override
         public void run() {
+            datosRecibidos = 0;
             boolean fin = false;
             int indiceFinal = -1;
             boolean salioF = false;
@@ -163,6 +170,7 @@ public class Application implements Runnable{
                         if (seg.length == 1 && seg[0] == 'f') {
                             salioF = true;
                         }else if(!mensajeFull.contains("|")){
+                            //Si nunca contiene indice|texto|caracteres valido, como es en el caso de un dato perdido [0, 0, 0, 0, ... , 0] el try catch evitara que se haga alguna accion
                             try{
                                 indiceFinal = Integer.parseInt(mensajeFull);
                             }catch(Exception e){
@@ -228,7 +236,7 @@ public class Application implements Runnable{
                     datosRecibidos += contenido.length();
                     Platform.runLater(() -> {
                         textArea.appendText(contenido);
-                        labelDatosRecibidos.setText("Datos recividos: " + datosRecibidos + "\nPaquetes Recibidos: " + (int)(datosRecibidos/dataSize));
+                        labelDatosRecibidos.setText("Datoss recibidos: " + datosRecibidos + "\nPaquetes Recibidos: " + (int)(datosRecibidos/dataSize));
                     });
                     
                 }
@@ -290,7 +298,7 @@ public class Application implements Runnable{
         System.out.println("segmentosss");
         for(char[] s: segmentos){
             try {
-                System.out.println(s);
+                System.out.println("***" + Arrays.toString(s) + "***\n");
                 if(!applicationLayer.isClosed()){
                     applicationLayer.getPoolInSuperior().add(s);
                 }else{
@@ -329,7 +337,7 @@ public class Application implements Runnable{
         if(charLeidos>0){
             String payLoad = new String(buffer);
             String m = mensaje + payLoad + "|"+String.valueOf(charLeidos);
-            datosEnviados += payLoad.length();
+            datosEnviados += m.length();
             return m.toCharArray();
         }
         return null;

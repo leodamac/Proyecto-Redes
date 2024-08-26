@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 public class Sender implements Runnable {
-        private static final double PROBABILIDAD_PERDIDA = 0.01;
+        private static final double PROBABILIDAD_PERDIDA = 0.5;
         private static final double PROBABILIDAD_CORRUPCION = 0.05;
         Layer layer1;
         Layer layer2;

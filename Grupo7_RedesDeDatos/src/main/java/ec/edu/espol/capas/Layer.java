@@ -77,4 +77,12 @@ public abstract class Layer {
         char[] receivedMessage = poolInSuperior.take();
         return receivedMessage;
     }
+    
+    public int doChecksum(char[] data){
+        int checksum = 0;
+        for (char c : data) {
+            checksum += c;
+        }
+        return checksum;
+    }
 }

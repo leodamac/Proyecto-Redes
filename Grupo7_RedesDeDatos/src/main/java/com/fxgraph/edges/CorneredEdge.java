@@ -14,7 +14,6 @@ import javafx.scene.shape.Line;
 import javafx.scene.text.Text;
 
 public class CorneredEdge extends AbstractEdge {
-
 	private final StringProperty textProperty;
 	private final Orientation orientation;
 
