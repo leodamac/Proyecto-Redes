@@ -24,7 +24,6 @@ public class Application implements Runnable{
     private volatile int datosRecibidos;
     private volatile int dCorrupccion;
     private volatile int dPerdida;
-
     public PriorityQueue<String> mensajesAlFinalDeTodo = new PriorityQueue<>((o1, o2) -> {
         int id1 = -1;
         try{
@@ -48,8 +47,10 @@ public class Application implements Runnable{
     private volatile boolean sinPerdida = true;
     private Semaphore mutex = new Semaphore(1);
     private Semaphore mutex2 = new Semaphore(1);
+    private volatile double pPerdida;
+    private volatile double pCorrupcion;
     
-    public Application(boolean connectionOriented, boolean sinPerdida) {
+    public Application(boolean connectionOriented, boolean sinPerdida, double pPerdida, double pCorrupcion) {
         this.applicationLayer = new AplicationLayer(connectionOriented);
         this.transportLayer = new TransporLayer(connectionOriented);
         this.transportLayer.setSourcePort(8080);
@@ -61,10 +62,12 @@ public class Application implements Runnable{
         this.sinPerdida = sinPerdida;
         this.dCorrupccion = 0;
         this.dPerdida = 0;
+        this.pPerdida = pPerdida;
+        this.pCorrupcion = pCorrupcion;
     }
     
     public Application(boolean connectionOriented) {
-        this(connectionOriented, false);
+        this(connectionOriented, true, 0.1, 0.1);
     }
    
     public void close(){
@@ -124,17 +127,17 @@ public class Application implements Runnable{
     @Override
     public void run() {
         
-        Sender senderAppToTrans = new Sender(applicationLayer,transportLayer, sinPerdida);
-        Sender senderTransToApp = new Sender(transportLayer, applicationLayer, sinPerdida);
+        Sender senderAppToTrans = new Sender(applicationLayer,transportLayer, sinPerdida, pPerdida, pCorrupcion);
+        Sender senderTransToApp = new Sender(transportLayer, applicationLayer, sinPerdida, pPerdida, pCorrupcion);
 
-        Sender senderTransToNetw = new Sender(transportLayer, transportLayer.getNetworkLayer(), sinPerdida);
-        Sender senderNetToTrans = new Sender(transportLayer.getNetworkLayer(),transportLayer, sinPerdida);
+        Sender senderTransToNetw = new Sender(transportLayer, transportLayer.getNetworkLayer(), sinPerdida, pPerdida, pCorrupcion);
+        Sender senderNetToTrans = new Sender(transportLayer.getNetworkLayer(),transportLayer, sinPerdida, pPerdida, pCorrupcion);
 
-        Sender senderNetToDat = new Sender(transportLayer.getNetworkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer(), sinPerdida);
-        Sender senderDatToNet = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer(), sinPerdida);
+        Sender senderNetToDat = new Sender(transportLayer.getNetworkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer(), sinPerdida, pPerdida, pCorrupcion);
+        Sender senderDatToNet = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer(), sinPerdida, pPerdida, pCorrupcion);
 
-        Sender senderDatToPhy = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(), sinPerdida);
-        Sender senderPhyToDat = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(),transportLayer.getNetworkLayer().getDataLinkLayer(), sinPerdida);
+        Sender senderDatToPhy = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(), sinPerdida, pPerdida, pCorrupcion);
+        Sender senderPhyToDat = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(),transportLayer.getNetworkLayer().getDataLinkLayer(), sinPerdida, pPerdida, pCorrupcion);
         /*
         Sender s1 = new Sender(applicationLayer,transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(), sinPerdida);
         Sender s2 = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(), applicationLayer);
@@ -234,11 +237,11 @@ public class Application implements Runnable{
                     }else{
                         boolean tomo = false;
                         int tiempo = 1;
-                        int tiempoFinal = 5;
+                        int tiempoFinal = 4;
                         
                         while(!tomo && tiempo < tiempoFinal && !close){
                             if(sendData){
-                                tiempoFinal = 8;
+                                tiempoFinal = 6;
                                 sendData = false;
                             }
                             System.out.println("Esperando " + tiempo + " segundos");
