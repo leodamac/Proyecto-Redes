@@ -26,6 +26,10 @@ import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
@@ -42,6 +46,7 @@ import javafx.scene.input.Dragboard;
 import javafx.scene.input.MouseButton;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.input.TransferMode;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.BorderPane;
@@ -83,6 +88,7 @@ public class App extends Application {
         
 	@Override
 	public void start(Stage stage) throws Exception {
+                
                 this.totalPerdidos = 0;
                 this.totalCorrompidos = 0;
                 this.totalEnviados = 0;
@@ -101,18 +107,20 @@ public class App extends Application {
                 graph.layout(new ForceDirectedLayout());
 		graph.getViewportGestures().setPanButton(MouseButton.SECONDARY);
 		graph.getNodeGestures().setDragButton(MouseButton.PRIMARY);
-                
                 bP.getChildren().add(graph.getCanvas());
                 vBoxMain.getChildren().add(bP);
                 
                 HBox hBoxBottom = new HBox(15);
                 Button refreshButton = new Button("Refresh");
-                
                 refreshButton.setOnAction(eh -> {
                     labelDatos.setText("Datos total enviados: " + this.totalEnviados + " | Datos total recibidos: " + this.totalRecibidos + " | Perdidos: " + this.totalPerdidos + " | Corrompidos: " + this.totalCorrompidos);
-                    labelDatosP.setText("Datos total enviados: " + (this.totalEnviados*100)/this.totalEnviados + "% | Datos total recibidos: " + (this.totalRecibidos*100)/this.totalEnviados + "% | Perdidos: " + (this.totalPerdidos*100)/(this.totalEnviados/128) + "% | Corrompidos: " + (this.totalCorrompidos*100)/(this.totalEnviados/128) +"%");
+                    labelDatosP.setText("Datos total enviados: " + (this.totalEnviados*100)/this.totalEnviados + "% | Datos total recibidos: " + ((float)(this.totalRecibidos*100))/((float)this.totalEnviados) + "% | Perdidos: " + (float)(this.totalPerdidos*100)/(float)((float)this.totalEnviados/(float)128) + "% | Corrompidos: " + (float)(this.totalCorrompidos*100)/((float)this.totalEnviados/(float)128) +"%");
                 });
-                hBoxBottom.getChildren().addAll(labelDatos, refreshButton);
+                Button mostrarGraficoButton = new Button("Ver grafico");
+                mostrarGraficoButton.setOnAction(eh -> {
+                    mostrarGrafico(String.valueOf(this.totalRecibidos/128), String.valueOf(this.totalEnviados/128));
+                });
+                hBoxBottom.getChildren().addAll(labelDatos, refreshButton, mostrarGraficoButton);
                 vBoxMain.getChildren().addAll(hBoxBottom, labelDatosP);
 
                 bP.setMinSize(800, 600);
@@ -194,6 +202,81 @@ public class App extends Application {
         hBoxEscenario.setStyle(estilo);
         
         return hBoxEscenario;
+    }
+    
+    private void mostrarGrafico(String datosRecibidos, String datosEnviados){
+        Stage stage = new Stage();
+        stage.initModality(Modality.NONE);
+        stage.initOwner(this.stage);
+        stage.initStyle(StageStyle.UTILITY);
+        
+        stage.setTitle("Comparación de datos perdidos");
+
+        // Ejes X y Y
+        CategoryAxis xAxis = new CategoryAxis();
+        xAxis.setLabel("Categoría");
+
+        NumberAxis yAxis = new NumberAxis();
+        yAxis.setLabel("Datos perdidos");
+
+        // Crear el gráfico de barras
+        BarChart<String, Number> barChart = new BarChart<>(xAxis, yAxis);
+        barChart.setTitle("Comparación de datos perdidos");
+
+        // Crear los datos para el gráfico
+        XYChart.Series<String, Number> series1 = new XYChart.Series<>();
+        series1.setName("Valor teorico");
+        series1.getData().add(new XYChart.Data<>(datosEnviados, 1600-1042.08));
+        //series1.getData().add(new XYChart.Data<>("16", 10.42));
+        //series1.getData().add(new XYChart.Data<>("0", 0));
+
+        XYChart.Series<String, Number> series2 = new XYChart.Series<>();
+        series2.setName("Valor practico");
+        series2.getData().add(new XYChart.Data<>(datosRecibidos, Float.valueOf(datosRecibidos)));
+        //series2.getData().add(new XYChart.Data<>("0", 0));
+        //series2.getData().add(new XYChart.Data<>("0", 0));
+
+        // Añadir las series al gráfico
+        barChart.getData().addAll(series1, series2);
+
+        // Crear un AnchorPane para añadir el gráfico y las etiquetas
+        AnchorPane root = new AnchorPane();
+        root.getChildren().add(barChart);
+
+        // Añadir etiquetas a las barras
+        for (XYChart.Series<String, Number> series : barChart.getData()) {
+            for (XYChart.Data<String, Number> data : series.getData()) {
+                Label label = new Label(String.valueOf(data.getYValue()));
+                Label label2 = new Label(String.valueOf((data.getYValue().floatValue()/16)) + "%");
+                label.setStyle("-fx-font-size: 12; -fx-font-weight: bold;");
+                AnchorPane.setLeftAnchor(label, data.getNode().getLayoutX() + barChart.getLayoutX() + 10);
+                AnchorPane.setTopAnchor(label, data.getNode().getLayoutY() + barChart.getLayoutY() - 10);
+                AnchorPane.setLeftAnchor(label2, data.getNode().getLayoutX() + barChart.getLayoutX() + 10);
+                AnchorPane.setTopAnchor(label2, data.getNode().getLayoutY() + barChart.getLayoutY() - 10);
+                root.getChildren().add(label);
+                root.getChildren().add(label2);
+
+                // Escuchar cambios en el layout de la barra para mover la etiqueta si es necesario
+                data.getNode().layoutXProperty().addListener((observable, oldValue, newValue) -> {
+                    AnchorPane.setLeftAnchor(label, newValue.doubleValue() + barChart.getLayoutX() + 175);
+                    AnchorPane.setLeftAnchor(label2, newValue.doubleValue() + barChart.getLayoutX() + 175);
+                });
+                data.getNode().layoutYProperty().addListener((observable, oldValue, newValue) -> {
+                    AnchorPane.setTopAnchor(label, newValue.doubleValue() + barChart.getLayoutY()-10);
+                    AnchorPane.setTopAnchor(label2, newValue.doubleValue() + barChart.getLayoutY());
+                });
+            }
+        }
+        
+        AnchorPane.setTopAnchor(barChart, 0.0);
+        AnchorPane.setBottomAnchor(barChart, 0.0);
+        AnchorPane.setLeftAnchor(barChart, 0.0);
+        AnchorPane.setRightAnchor(barChart, 0.0);
+
+        // Crear la escena y mostrarla
+        Scene scene = new Scene(root, 800, 600);
+        stage.setScene(scene);
+        stage.show();
     }
     
     private void mostrarSimuladorRouter(Escenario escenario) {
@@ -341,9 +424,6 @@ public class App extends Application {
                       }
                       crearSobre(iDispositivos[2], iDispositivos[in1-1]);
                 }
-                if(escenario.getDispositivo().hasApps()){
-                    this.totalRecibidos += escenario.getDispositivo().getApp(0).getDatosRecibidos();
-                }
               }
         }).start();
         
@@ -366,6 +446,7 @@ public class App extends Application {
                               }
                               crearSobre(iDispositivos[2], iDispositivos[in1-1]);
                         }
+                        
                   }).start();
                 }
             }
@@ -417,6 +498,12 @@ public class App extends Application {
                 corrupcion = escenario.getDispositivo().getApp(0).getdCorrupccion();
                 datosPerdidos.setText("Paquetes Perdidos: " + perdida);
                 datosCorrompidos.setText("Paquetes Corrompidos: " + corrupcion);
+                
+                this.totalPerdidos += perdida;
+                this.totalCorrompidos += corrupcion;
+                this.totalEnviados += escenario.getDispositivo().getApp(0).getDatosEnviados();
+                this.totalRecibidos += escenario.getDispositivo().getApp(0).getDatosRecibidos();
+                
                 escenario.getDispositivo().removeApp(escenario.getDispositivo().getApp(0));
                 textAreaRecepcion.setDisable(true);
                 btnEnviarArchivo.setDisable(true);
@@ -424,8 +511,8 @@ public class App extends Application {
                 actualizarConexionButton.setDisable(true);
                 cerrarApp.setText("Abrir app");
                 
-                this.totalPerdidos += perdida;
-                this.totalCorrompidos += corrupcion;
+                
+                
             }else{
                 cerrarApp.setText("Cerrar aplicacion");
                 escenario.getDispositivo().openApplication("mail", sinPerdida);
@@ -515,7 +602,6 @@ public class App extends Application {
                 progressBarTransferencia.setProgress(progreso);
                 labelProgresoTransferencia.setText(String.format("Progreso de Transferencia: %.2f%%", progreso * 100));
                 datosEnviados.setText("Datos enviados: "+dEnviados  + "\nPaquetes Enviados: " + (int)dEnviados/128);
-                this.totalEnviados = escenario.getDispositivo().getApp(0).getDatosEnviados();
             });
     }
 
