@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.PriorityQueue;
+import java.util.concurrent.Semaphore;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Platform;
@@ -21,6 +22,8 @@ public class Application implements Runnable{
     public static String path;
     private volatile int datosEnviados;
     private volatile int datosRecibidos;
+    private volatile int dCorrupccion;
+    private volatile int dPerdida;
 
     public PriorityQueue<String> mensajesAlFinalDeTodo = new PriorityQueue<>((o1, o2) -> {
         int id1 = -1;
@@ -36,12 +39,15 @@ public class Application implements Runnable{
         }
         return id1 - id2;
     });
+    
     private Thread recibidorThread = null;
     private Thread enviadorThread = null;
     public String dataF = "";
     private volatile boolean close = false;
     private volatile boolean sendData = false;
     private volatile boolean sinPerdida = true;
+    private Semaphore mutex = new Semaphore(1);
+    private Semaphore mutex2 = new Semaphore(1);
     
     public Application(boolean connectionOriented, boolean sinPerdida) {
         this.applicationLayer = new AplicationLayer(connectionOriented);
@@ -53,12 +59,13 @@ public class Application implements Runnable{
         this.datosEnviados = 0;
         this.datosRecibidos = 0;
         this.sinPerdida = sinPerdida;
+        this.dCorrupccion = 0;
+        this.dPerdida = 0;
     }
     
     public Application(boolean connectionOriented) {
         this(connectionOriented, false);
     }
-    
    
     public void close(){
         close = true;
@@ -75,6 +82,14 @@ public class Application implements Runnable{
 
     public int getDatosRecibidos() {
         return datosRecibidos;
+    }
+
+    public int getdCorrupccion() {
+        return dCorrupccion;
+    }
+
+    public int getdPerdida() {
+        return dPerdida;
     }
 
     public AplicationLayer getApplicationLayer() {
@@ -120,7 +135,19 @@ public class Application implements Runnable{
 
         Sender senderDatToPhy = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer(),transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(), sinPerdida);
         Sender senderPhyToDat = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(),transportLayer.getNetworkLayer().getDataLinkLayer(), sinPerdida);
-
+        /*
+        Sender s1 = new Sender(applicationLayer,transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(), sinPerdida);
+        Sender s2 = new Sender(transportLayer.getNetworkLayer().getDataLinkLayer().getPhysicalLayer(), applicationLayer);
+        new Thread(s1).start();
+        new Thread(s2).start();
+        
+        new Thread(()->{
+            while(!isClosed()){
+            }
+            s1.finish();
+            s2.finish();
+        }).start();
+        */
         new Thread(senderAppToTrans).start();
         new Thread(senderTransToApp).start();
         new Thread(senderTransToNetw).start();
@@ -141,6 +168,26 @@ public class Application implements Runnable{
             senderDatToNet.finish();
             senderDatToPhy.finish();
             senderPhyToDat.finish();
+            
+            this.dCorrupccion += senderAppToTrans.getDatosCorruptos();
+            this.dCorrupccion += senderTransToApp.getDatosCorruptos();
+            this.dCorrupccion += senderTransToNetw.getDatosCorruptos();
+            this.dCorrupccion += senderNetToTrans.getDatosCorruptos();
+            this.dCorrupccion += senderNetToDat.getDatosCorruptos();
+            this.dCorrupccion += senderDatToNet.getDatosCorruptos();
+            this.dCorrupccion += senderDatToPhy.getDatosCorruptos();
+            this.dCorrupccion += senderPhyToDat.getDatosCorruptos();
+            
+            this.dPerdida += senderAppToTrans.getDatosPerdidos();
+            this.dPerdida += senderTransToApp.getDatosPerdidos();
+            this.dPerdida += senderTransToNetw.getDatosPerdidos();
+            this.dPerdida += senderNetToTrans.getDatosPerdidos();
+            this.dPerdida += senderNetToDat.getDatosPerdidos();
+            this.dPerdida += senderDatToNet.getDatosPerdidos();
+            this.dPerdida += senderDatToPhy.getDatosPerdidos();
+            this.dPerdida += senderPhyToDat.getDatosPerdidos();
+            
+            System.out.println(dPerdida + " " + dCorrupccion);
         }).start();
     }
     
@@ -186,11 +233,11 @@ public class Application implements Runnable{
                     }else{
                         boolean tomo = false;
                         int tiempo = 1;
-                        int tiempoFinal = 7;
+                        int tiempoFinal = 6;
                         
-                        while(!tomo && tiempo < tiempoFinal){
+                        while(!tomo && tiempo < tiempoFinal && !close){
                             if(sendData){
-                                tiempoFinal = 12;
+                                tiempoFinal = 10;
                                 sendData = false;
                             }
                             System.out.println("Esperando " + tiempo + " segundos");
@@ -206,7 +253,12 @@ public class Application implements Runnable{
                                 if (seg.length == 1 && seg[0] == 'f') {
                                     salioF = true;
                                 }else if(!mensajeFull.contains("|")){
-                                    indiceFinal = Integer.parseInt(mensajeFull);
+                                    try{
+                                        indiceFinal = Integer.parseInt(mensajeFull);
+                                    }catch (NumberFormatException e){
+                                        System.out.println(e);
+                                    }
+                                    
                                 } else {
                                     mensajesAlFinalDeTodo.offer(mensajeFull);
                                 }
@@ -225,6 +277,7 @@ public class Application implements Runnable{
                         fin = true;
                     }
                 } catch (InterruptedException ex) {
+                    System.out.println(ex);
                     fin = true;
                 }
             }
@@ -233,12 +286,18 @@ public class Application implements Runnable{
                     String mensaje = mensajesAlFinalDeTodo.poll();
                     String contenido = mensaje.split("\\|")[1];
                     System.out.println(contenido);
-                    datosRecibidos += contenido.length();
+                    try {
+                        mutex2.acquire();
+                        datosRecibidos += contenido.length();
+                    } catch (InterruptedException ex) {
+                        Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+                    }finally {
+                        mutex2.release();
+                    }                    
                     Platform.runLater(() -> {
                         textArea.appendText(contenido);
-                        labelDatosRecibidos.setText("Datoss recibidos: " + datosRecibidos + "\nPaquetes Recibidos: " + (int)(datosRecibidos/dataSize));
+                        labelDatosRecibidos.setText("Datoss recibidos: " + datosRecibidos + "\nPaquetes Recibidos: " + (datosRecibidos/dataSize));
                     });
-                    
                 }
             }
             
@@ -276,7 +335,6 @@ public class Application implements Runnable{
         FileReader fr = openFile(path);
         int i = 0;
         if(fr != null){
-            datosEnviados = 0;
             while(!fin){
                 try {
                     char[] data = this.dividirData(fr, i);
@@ -337,7 +395,14 @@ public class Application implements Runnable{
         if(charLeidos>0){
             String payLoad = new String(buffer);
             String m = mensaje + payLoad + "|"+String.valueOf(charLeidos);
-            datosEnviados += m.length();
+            try {
+                mutex.acquire();
+                datosEnviados += payLoad.length();
+            } catch (InterruptedException ex) {
+                Logger.getLogger(Application.class.getName()).log(Level.SEVERE, null, ex);
+            }finally {
+                mutex.release();
+            }
             return m.toCharArray();
         }
         return null;

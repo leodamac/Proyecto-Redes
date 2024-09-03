@@ -15,12 +15,12 @@ public class DataPool<T> {
     }
 
     public void add(T data) throws InterruptedException {
-        queue.add(data);
+        //queue.add(data);
+        queue.put(data);
     }
 
     public T take() throws InterruptedException {
         T item = queue.poll(1, TimeUnit.SECONDS);
-        //return queue.take();
         return item;
     }
     

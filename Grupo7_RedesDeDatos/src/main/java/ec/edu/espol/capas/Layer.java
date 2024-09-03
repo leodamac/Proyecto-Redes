@@ -52,7 +52,12 @@ public abstract class Layer {
     }
     
     public void sendDataInferior(char[] data) throws InterruptedException {
-        poolOutInferior.add(this.encapsulation(data));
+        if(data.length < 5){
+            poolOutInferior.add(data);
+        }else{
+            //poolOutInferior.add(this.encapsulation(data));
+            poolOutInferior.add(data);
+        }
     }
 
     public void sendDataEqual(char[] data) throws InterruptedException {
@@ -60,7 +65,12 @@ public abstract class Layer {
     }
     
     public void sendDataSuperior(char[] data) throws InterruptedException {
-        poolOutSuperior.add(this.desencapsulation(data));
+        if(data.length < 5){
+            poolOutSuperior.add(data);
+        }else{
+            //poolOutSuperior.add(this.desencapsulation(data));
+            poolOutSuperior.add(data);
+        }
     }
 
     public char[] receiveDataInferior() throws InterruptedException {

@@ -98,20 +98,25 @@ public class NetworkLayer extends Layer{
     public char[] desencapsulation(char[] data) {
         // Calculamos la longitud del header:
         // 11 caracteres (source IP) + 11 caracteres (destination IP) + 1 (delimitador "|") + 1 (delimitador "|")
-        int headerLength = 11 + 1 + 11; // 32 caracteres en total
-        char[] trailer = getTrailer(data);
-        // Extraemos la parte de los datos excluyendo el header
-        int dataLength = (data.length - headerLength) - trailer.length-1;
-        char[] extractedData = new char[dataLength];
-        System.arraycopy(data, headerLength, extractedData, 0, dataLength);
+        String d = new String(data);
+        String[] d_s = d.split("\\|");
+        String extraido = "";
+        String ips = "";
+        for(int i = 0; i<d_s.length-1; i++){
+            if(i<2){
+                ips += d_s[i] + "|";
+            }else{
+               extraido += d_s[i] + "|";
         
-        char[] checksumData = new char[data.length-trailer.length-1];
-        System.arraycopy(data, 0, checksumData, 0, data.length-trailer.length-1);
+            }
+        }
+        extraido = extraido.substring(0, extraido.length()-1);
+        int checksum = this.doChecksum((ips+extraido).toCharArray());
         int checksumRecibido;
-        int checksum = this.doChecksum(checksumData);
         try {
-            checksumRecibido = Integer.parseInt(new String(trailer));
+            checksumRecibido = Integer.parseInt(d_s[d_s.length-1]);
         } catch (NumberFormatException e) {
+            System.out.println(e);
             checksumRecibido = 0;
         }
         
@@ -121,7 +126,7 @@ public class NetworkLayer extends Layer{
             System.out.println("Paso el CHECKSUM en NETWORKLAYER\n" + "Checksum Recibido: " + checksumRecibido + " - Checksum Calculado: " + checksum);
         }
 
-        return extractedData;
+        return extraido.toCharArray();
     }
 
     @Override
@@ -130,7 +135,7 @@ public class NetworkLayer extends Layer{
         String[] ip = this.IP.split("\\.");
         String destinationIP = ip[0] + "." + ip[1] + "." + ip[2] + ".1";
         // Convertimos la información del header en un String
-        String headerString = sourceIP + "|" + destinationIP;
+        String headerString = sourceIP + "|" + destinationIP + "|";
 
         // Convertimos el String del header a un array de caracteres
         char[] header = headerString.toCharArray();
@@ -146,20 +151,7 @@ public class NetworkLayer extends Layer{
     @Override
     public char[] generateTrailer(char[] data) {
         int valor = doChecksum(data);
-        char[] trailer = ("|"+ String.valueOf(valor)).toCharArray();
-        return trailer;
-    }
-    
-    private char[] getTrailer(char[] data){
-        System.out.println("GET TRAILER" + Arrays.toString(data));
-        String numero = "";
-        for(int i = data.length-1; i>0 && data[i] != '|'; i--){
-            numero = data[i] + numero;
-        }
-        char[] trailer =  numero.toCharArray();
-        if(trailer.length == data.length-1){
-             trailer = "0".toCharArray();
-        }
+        char[] trailer = ("|"+valor).toCharArray();
         return trailer;
     }
     

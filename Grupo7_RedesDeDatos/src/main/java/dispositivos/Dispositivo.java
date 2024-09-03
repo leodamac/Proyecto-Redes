@@ -39,8 +39,6 @@ public abstract class  Dispositivo {
         return networkLayer;
     }
     
-    
-    
     public Thread getProceso(String name){
         return this.procesos.get(name);
     }
@@ -57,8 +55,16 @@ public abstract class  Dispositivo {
         return this instanceof Host ? "pc" : "router";
     }
     
+    public boolean hasApps(){
+        return !this.aplicaciones.isEmpty();
+    }
+    
     public void addApp(Application app){
         this.aplicaciones.add(app);
+    }
+    
+    public void removeApp(Application app){
+        this.aplicaciones.remove(app);
     }
     
     public Application getApp(int indice){
@@ -68,6 +74,7 @@ public abstract class  Dispositivo {
     public void shutDown(){
         for(Application app: this.aplicaciones){
             app.close();
+            this.aplicaciones.remove(app);
         }
         this.on = false;
     }
