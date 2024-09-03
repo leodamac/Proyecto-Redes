@@ -202,11 +202,12 @@ public class Application implements Runnable{
 
         @Override
         public void run() {
-            datosRecibidos = 0;
+            //datosRecibidos = 0;
             boolean fin = false;
             int indiceFinal = -1;
             boolean salioF = false;
             int llegados = 0;
+            textArea.clear();
             while (!fin) {
                 try {
                     char[] seg = applicationLayer.getPoolInInferior().take();
@@ -233,11 +234,11 @@ public class Application implements Runnable{
                     }else{
                         boolean tomo = false;
                         int tiempo = 1;
-                        int tiempoFinal = 6;
+                        int tiempoFinal = 5;
                         
                         while(!tomo && tiempo < tiempoFinal && !close){
                             if(sendData){
-                                tiempoFinal = 10;
+                                tiempoFinal = 8;
                                 sendData = false;
                             }
                             System.out.println("Esperando " + tiempo + " segundos");
