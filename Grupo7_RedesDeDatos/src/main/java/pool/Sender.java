@@ -18,17 +18,23 @@ public class Sender implements Runnable {
         private volatile int datosPerdidos;
         private Semaphore mutex = new Semaphore(1);
         
-        public Sender(Layer layer1, Layer layer2, boolean sinPerdida){
+        public Sender(Layer layer1, Layer layer2, boolean sinPerdida, double PROBABILIDAD_PERDIDA, double PROBABILIDAD_CORRUPCION){
             this.layer1 = layer1;
             this.layer2 = layer2;
             this.i = ++counter;
             this.sinPerdida = sinPerdida;
             this.datosCorruptos = 0;
             this.datosPerdidos = 0;
+            this.PROBABILIDAD_PERDIDA = PROBABILIDAD_PERDIDA;
+            this.PROBABILIDAD_CORRUPCION = PROBABILIDAD_CORRUPCION;
+        }
+        
+        public Sender(Layer layer1, Layer layer2, boolean sinPerdida){
+            this(layer1, layer2, sinPerdida, 0.1, 0.1);
         }
         
         public Sender(Layer layer1, Layer layer2){
-            this(layer1, layer2, true);
+            this(layer1, layer2, true, 0.1, 0.1);
         }
 
         public int getDatosCorruptos() {
