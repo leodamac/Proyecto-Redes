@@ -79,12 +79,12 @@ public abstract class  Dispositivo {
         this.on = false;
     }
     
-    public Application openApplication(String name, boolean sinPerdida){
+    public Application openApplication(String name, boolean sinPerdida, double pPerdida){
         Application app = null;
         Thread t = null;
         switch(name){
                 case "mail":
-                    app = new Mail(sinPerdida);
+                    app = new Mail(sinPerdida, pPerdida);
                     t = new Thread(app);
                     procesos.put(name, t);
                     t.start();
