@@ -39,6 +39,8 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.Tooltip;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -53,6 +55,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.CornerRadii;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.LineTo;
@@ -86,9 +89,11 @@ public class App extends Application {
         private int totalEnviados;
         private int totalRecibidos;
         
+        private double pPerdida;
+        
 	@Override
 	public void start(Stage stage) throws Exception {
-                
+                pPerdida = 0.1;
                 this.totalPerdidos = 0;
                 this.totalCorrompidos = 0;
                 this.totalEnviados = 0;
@@ -118,14 +123,34 @@ public class App extends Application {
                 });
                 Button mostrarGraficoButton = new Button("Ver grafico");
                 mostrarGraficoButton.setOnAction(eh -> {
-                    mostrarGrafico(String.valueOf(this.totalRecibidos/128), String.valueOf(this.totalEnviados/128));
+                    mostrarGrafico((((float)this.totalRecibidos)/128), (((float)this.totalEnviados)/128));
                 });
-                hBoxBottom.getChildren().addAll(labelDatos, refreshButton, mostrarGraficoButton);
+                TextField probabilidadPerdida = new TextField();
+                probabilidadPerdida.setTooltip(new Tooltip("Ingrese el porcentaje de perdida"));
+                
+                probabilidadPerdida.setOnAction(eh->{
+                    if(!probabilidadPerdida.getText().isEmpty()){
+                        pPerdida = Double.parseDouble(probabilidadPerdida.getText());
+                        Alert alert = new Alert(AlertType.INFORMATION);
+                        alert.setTitle("Cambiado");
+                        alert.setHeaderText(null);
+                        alert.setContentText("Probabilidad de perdidad cambiada a: " + pPerdida*100 );
+                        alert.showAndWait();
+                        this.totalPerdidos = 0;
+                        this.totalCorrompidos = 0;
+                        this.totalEnviados = 0;
+                        this.totalRecibidos = 0;
+                        labelDatos.setText("Datos total enviados: " + this.totalEnviados + " | Datos total recibidos: " + this.totalRecibidos + " | Perdidos: " + this.totalPerdidos + " | Corrompidos: " + this.totalCorrompidos);
+                        labelDatosP.setText("Datos total enviados: " + 0 + "% | Datos total recibidos: " + 0 + "% | Perdidos: " + 0 + "% | Corrompidos: " + 0 +"%");;
+                
+                    }
+                });
+                hBoxBottom.getChildren().addAll(labelDatos, refreshButton, mostrarGraficoButton, probabilidadPerdida);
                 vBoxMain.getChildren().addAll(hBoxBottom, labelDatosP);
 
                 bP.setMinSize(800, 600);
                 bP.setPrefSize(800,600);
-                bP.setBackground(new Background(new BackgroundFill(Color.LIGHTGRAY, CornerRadii.EMPTY, Insets.EMPTY)));
+                bP.setBackground(new Background(new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, Insets.EMPTY)));
                 Scene scene = new Scene(vBoxMain);
 
 		stage.setScene(scene);
@@ -204,17 +229,17 @@ public class App extends Application {
         return hBoxEscenario;
     }
     
-    private void mostrarGrafico(String datosRecibidos, String datosEnviados){
+    private void mostrarGrafico(float datosRecibidos, float datosEnviados) {
         Stage stage = new Stage();
         stage.initModality(Modality.NONE);
         stage.initOwner(this.stage);
         stage.initStyle(StageStyle.UTILITY);
-        
+
         stage.setTitle("Comparación de datos perdidos");
 
         // Ejes X y Y
         CategoryAxis xAxis = new CategoryAxis();
-        xAxis.setLabel("Categoría");
+        xAxis.setLabel("Comparaciones");
 
         NumberAxis yAxis = new NumberAxis();
         yAxis.setLabel("Datos perdidos");
@@ -223,61 +248,107 @@ public class App extends Application {
         BarChart<String, Number> barChart = new BarChart<>(xAxis, yAxis);
         barChart.setTitle("Comparación de datos perdidos");
 
+        // Configurar las propiedades del gráfico
+        barChart.setBarGap(-5); // Reducir el espacio entre barras
+
         // Crear los datos para el gráfico
         XYChart.Series<String, Number> series1 = new XYChart.Series<>();
         series1.setName("Valor teorico");
-        series1.getData().add(new XYChart.Data<>(datosEnviados, 1600-1042.08));
-        //series1.getData().add(new XYChart.Data<>("16", 10.42));
-        //series1.getData().add(new XYChart.Data<>("0", 0));
+        double p = Math.pow((1-pPerdida), 10);
+        series1.getData().add(new XYChart.Data<>("Datos", datosEnviados*p));
 
         XYChart.Series<String, Number> series2 = new XYChart.Series<>();
         series2.setName("Valor practico");
-        series2.getData().add(new XYChart.Data<>(datosRecibidos, Float.valueOf(datosRecibidos)));
-        //series2.getData().add(new XYChart.Data<>("0", 0));
-        //series2.getData().add(new XYChart.Data<>("0", 0));
+        series2.getData().add(new XYChart.Data<>("Datos", datosRecibidos));
 
         // Añadir las series al gráfico
         barChart.getData().addAll(series1, series2);
-
+        VBox vbox = new VBox();
+        vbox.setBackground(new Background(new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, Insets.EMPTY)));
         // Crear un AnchorPane para añadir el gráfico y las etiquetas
         AnchorPane root = new AnchorPane();
-        root.getChildren().add(barChart);
+        Label labelDatos = new Label("Datos total enviados: " + this.totalEnviados +
+                                     " | Datos total recibidos: " + this.totalRecibidos +
+                                     " | Perdidos: " + this.totalPerdidos +
+                                     " | Corrompidos: " + this.totalCorrompidos);
+        labelDatos.setStyle("-fx-font-size: 18; -fx-font-weight: bold;");
+        AnchorPane.setLeftAnchor(labelDatos, 10.0);
+        AnchorPane.setTopAnchor(labelDatos, 10.0);
 
+        float enviados = this.totalEnviados > 0 ? this.totalEnviados : 1; // Evitar división por cero
+        float recibidos = this.totalRecibidos; // Evitar división por cero
+        float enviadosDiv128 = this.totalEnviados > 0 ? this.totalEnviados / 128f : 1; // Evitar división por cero
+
+
+        Label labelDatosP = new Label("Datos total enviados: " + (this.totalEnviados > 0 ? 100 + "%" : "N/A") + " | " +
+                                      "Datos total recibidos: " + ((enviados > 0 ? (recibidos * 100) / enviados : 0) + "%") + " | " +
+                                      "Perdidos: " + ((enviadosDiv128 > 0 ? (this.totalPerdidos * 100) / enviadosDiv128 : 0) + "%") + " | " +
+                                      "Corrompidos: " + ((enviadosDiv128 > 0 ? (this.totalCorrompidos * 100) / enviadosDiv128 : 0) + "%"));
+        labelDatosP.setStyle("-fx-font-size: 16; -fx-font-weight: bold;");
+        AnchorPane.setLeftAnchor(labelDatosP, 10.0);
+        AnchorPane.setTopAnchor(labelDatosP, 40.0); // Ajustar según la posición deseada
+
+
+        VBox infoBox = new VBox(labelDatos, labelDatosP);
+        infoBox.setSpacing(5); // Espacio entre las etiquetas
+        infoBox.setPadding(new Insets(10)); // Padding alrededor de las etiquetas
+
+        // Añadir el gráfico y el contenedor de información a un VBox
+        root.getChildren().addAll(barChart);
+        VBox.setVgrow(root, Priority.ALWAYS);
+        vbox.getChildren().addAll(infoBox, root);
         // Añadir etiquetas a las barras
         for (XYChart.Series<String, Number> series : barChart.getData()) {
             for (XYChart.Data<String, Number> data : series.getData()) {
                 Label label = new Label(String.valueOf(data.getYValue()));
-                Label label2 = new Label(String.valueOf((data.getYValue().floatValue()/16)) + "%");
                 label.setStyle("-fx-font-size: 12; -fx-font-weight: bold;");
-                AnchorPane.setLeftAnchor(label, data.getNode().getLayoutX() + barChart.getLayoutX() + 10);
-                AnchorPane.setTopAnchor(label, data.getNode().getLayoutY() + barChart.getLayoutY() - 10);
-                AnchorPane.setLeftAnchor(label2, data.getNode().getLayoutX() + barChart.getLayoutX() + 10);
-                AnchorPane.setTopAnchor(label2, data.getNode().getLayoutY() + barChart.getLayoutY() - 10);
-                root.getChildren().add(label);
-                root.getChildren().add(label2);
 
-                // Escuchar cambios en el layout de la barra para mover la etiqueta si es necesario
+                Label label2 = new Label(String.valueOf(((data.getYValue().floatValue()*100)/(datosEnviados == 0 ? 1: datosEnviados))) + "%");
+                label2.setStyle("-fx-font-size: 12; -fx-font-weight: bold;");
+
                 data.getNode().layoutXProperty().addListener((observable, oldValue, newValue) -> {
-                    AnchorPane.setLeftAnchor(label, newValue.doubleValue() + barChart.getLayoutX() + 175);
-                    AnchorPane.setLeftAnchor(label2, newValue.doubleValue() + barChart.getLayoutX() + 175);
+                    double barWidth = data.getNode().getBoundsInParent().getWidth();
+                    double xPos = newValue.doubleValue();
+                    double barX = xPos + barWidth / 2 - label.getWidth() / 2; // Centrar la etiqueta horizontalmente
+
+                    AnchorPane.setLeftAnchor(label, barX);
+                    AnchorPane.setLeftAnchor(label2, barX);
                 });
+
                 data.getNode().layoutYProperty().addListener((observable, oldValue, newValue) -> {
-                    AnchorPane.setTopAnchor(label, newValue.doubleValue() + barChart.getLayoutY()-10);
-                    AnchorPane.setTopAnchor(label2, newValue.doubleValue() + barChart.getLayoutY());
+                    double yPos = newValue.doubleValue();
+                    double chartHeight = barChart.getHeight();
+
+                    double labelY = yPos; // Posición de la etiqueta
+                    double label2Y = yPos-15; // Posición de la etiqueta % 
+
+                    // Ajustar la posición si la etiqueta está por encima del gráfico
+                    if (labelY < 0) {
+                        labelY = 0;
+                        label2Y = 0;
+                    }
+
+
+                    AnchorPane.setTopAnchor(label, labelY);
+                    AnchorPane.setTopAnchor(label2, label2Y);
                 });
+
+                root.getChildren().addAll(label, label2);
             }
         }
-        
+
         AnchorPane.setTopAnchor(barChart, 0.0);
         AnchorPane.setBottomAnchor(barChart, 0.0);
         AnchorPane.setLeftAnchor(barChart, 0.0);
         AnchorPane.setRightAnchor(barChart, 0.0);
 
         // Crear la escena y mostrarla
-        Scene scene = new Scene(root, 800, 600);
+        Scene scene = new Scene(vbox, 800, 800);
         stage.setScene(scene);
         stage.show();
     }
+
+
     
     private void mostrarSimuladorRouter(Escenario escenario) {
         Stage stage = new Stage();
@@ -289,7 +360,7 @@ public class App extends Application {
         VBox vBoxSimulador = new VBox(15);
         vBoxSimulador.setPadding(new Insets(20));
         vBoxSimulador.setAlignment(Pos.CENTER);
-        vBoxSimulador.setBackground(new Background(new BackgroundFill(Color.LIGHTGRAY, CornerRadii.EMPTY, Insets.EMPTY)));
+        vBoxSimulador.setBackground(new Background(new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, Insets.EMPTY)));
         Button titulo = new Button("Simulador de Router");
         titulo.setFont(Font.font("Arial", 20));
         titulo.setStyle("-fx-background-color: transparent; -fx-text-fill: #333333; -fx-font-weight: bold;");
@@ -335,7 +406,7 @@ public class App extends Application {
         Label labelProgresoTransferencia;
         Button actualizarConexionButton = new Button("Volver a conectar");
         Button cerrarApp = new Button("Cerrar aplicacion");
-        escenario.getDispositivo().openApplication("mail", sinPerdida);
+        escenario.getDispositivo().openApplication("mail", sinPerdida, this.pPerdida);
         //application.Application app2 = escenario.getDispositivo().openApplication("radio");
         
         boolean envio = false;
@@ -350,11 +421,11 @@ public class App extends Application {
         VBox vBoxSimulador = new VBox(15);
         vBoxSimulador.setPadding(new Insets(20));
         vBoxSimulador.setAlignment(Pos.CENTER);
-        vBoxSimulador.setBackground(new Background(new BackgroundFill(Color.LIGHTGRAY, CornerRadii.EMPTY, Insets.EMPTY)));
+        vBoxSimulador.setBackground(new Background(new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, Insets.EMPTY)));
 
         Button titulo = new Button("Simulador de Computadora de IP: " + escenario.getDispositivo().getIp());
         titulo.setFont(Font.font("Arial", 15));
-        titulo.setStyle("-fx-background-color: transparent; -fx-text-fill: #333333; -fx-font-weight: bold;");
+        titulo.setStyle("-fx-background-color: transparent; -fx-text-fill: #030303; -fx-font-weight: bold;");
         titulo.setDisable(true);
         Label datosEnviados = new Label("Datos enviados: "+escenario.getDispositivo().getApp(0).getDatosRecibidos() + "\nPaquetes Recibidos: 0");
         datosEnviados.setPrefHeight(35);
@@ -515,7 +586,7 @@ public class App extends Application {
                 
             }else{
                 cerrarApp.setText("Cerrar aplicacion");
-                escenario.getDispositivo().openApplication("mail", sinPerdida);
+                escenario.getDispositivo().openApplication("mail", sinPerdida, this.pPerdida);
                 escenario.getDispositivo().getApp(0).receiveDataFile(textAreaRecepcion, datosRecibidos);
                 textAreaRecepcion.clear();
                 textAreaRecepcion.setDisable(false);
