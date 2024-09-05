@@ -24,7 +24,7 @@ El proyecto se organiza en las siguientes componentes clave:
    
 2. **Dispositivos Simulados**: Las computadoras y el router se simulan para emular el flujo de datos a través de la red. Cada dispositivo implementa las capas de enlace de datos, red y la capa física para la transmisión real.
 
-3. **Capas del Modelo TCP/IP**:
+3. **Capas del Modelo TCP/IP**:📤
     - **Capa de Aplicación**: Segmenta los datos y los prepara para la transmisión.
     - **Capa de Transporte**: Encapsula los segmentos con información de control como los checksums.
     - **Capa de Red**: Añade direcciones IP y checksums adicionales.
@@ -67,13 +67,13 @@ Para cumplir con los requisitos del proyecto, se modificó la librería de terce
 
 Los experimentos mostraron una degradación progresiva de la integridad de los datos a medida que aumenta la probabilidad de errores, con una marcada afectación en mensajes más grandes. Estos resultados subrayan la importancia de los mecanismos de corrección de errores, que podrían incluirse en versiones futuras de la simulación.
 
-Para más detalles sobre los resultados de los experimentos, consulta el [documento técnico](Informe-FINAL.pdf).
+Para más detalles sobre los resultados de los experimentos, consulta el [documento técnico](Informe-FINAL.pdf).📄
 
 ## ✨ Conclusiones
 
 Esta simulación es una herramienta valiosa para la educación y la investigación, proporcionando una representación clara de los desafíos que enfrentan las redes de comunicación. Los usuarios pueden interactuar con la interfaz para ajustar los parámetros de error y observar cómo estos afectan la transmisión de datos en un entorno controlado. 
 
-El proyecto a futuro se puede mejorar para que incluya la implementación de **protocolos de corrección de errores** y mayor escalabilidad del sistema para redes más grandes.
+El proyecto a futuro se puede mejorar para que incluya la implementación de **protocolos de corrección de errores**, **mayor escalabilidad** del sistema para redes más grandes, añadiendo más hosts y routers o incluso ideas que teníamos pensados de simular un streaming de audio🔊🎶 aplicando el enfoque del protocolo **UDP** y compararlo con el **TCP**, pero por falta de tiempo, no se alcanzó a implementar.
 
 ## ✍️ Autores
 
