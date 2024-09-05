@@ -56,7 +56,7 @@ public abstract class Layer {
             poolOutInferior.add(data);
         }else{
             //poolOutInferior.add(this.encapsulation(data));
-            poolOutInferior.add(data);
+            poolOutInferior.add(this.encapsulation(data));
         }
     }
 
@@ -69,7 +69,7 @@ public abstract class Layer {
             poolOutSuperior.add(data);
         }else{
             //poolOutSuperior.add(this.desencapsulation(data));
-            poolOutSuperior.add(data);
+            poolOutSuperior.add(this.desencapsulation(data));
         }
     }
 

@@ -69,94 +69,131 @@ import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
 public class App extends Application {
-        Host PC1;
-        Host PC2;
-        Router router;
-        Cable cable1;
-        Cable cable2;
-        Stage stage;
-        
-        long totalBytes = 0;
-        Pane bP;
-        ICell[] iDispositivos;
-        Graph graph;
-        
-        private VBox vBoxMain;
-        
-        private int totalPerdidos;
-        private int totalCorrompidos;
-        
-        private int totalEnviados;
-        private int totalRecibidos;
-        
-        private double pPerdida;
-        
-	@Override
-	public void start(Stage stage) throws Exception {
-                pPerdida = 0.1;
-                this.totalPerdidos = 0;
-                this.totalCorrompidos = 0;
-                this.totalEnviados = 0;
-                this.totalRecibidos = 0;
-                vBoxMain = new VBox(15);
-                Label labelDatos = new Label("Datos total enviados: " + this.totalEnviados +  " | Datos total recibidos: " + this.totalRecibidos/128 + " | Datos total recibidos: " + this.totalRecibidos + " | Perdidos: " + this.totalPerdidos + " | Corrompidos: " + this.totalCorrompidos);
-                Label labelDatosP = new Label("Datos total enviados: " + 0 + "% | Datos total recibidos: " + 0 + "% | Perdidos: " + 0 + "% | Corrompidos: " + 0 +"%");
-                labelDatos.setMinHeight(25);
+		// Definición de dispositivos
+		Host PC1;
+		Host PC2;
+		Router router;
+		Cable cable1;
+		Cable cable2;
+		Stage stage;
 
-                this.stage = stage;
-                iniciarDispositivos();
-		graph = new Graph();
-                bP = new BorderPane();
-		iDispositivos = populateGraph(graph);
-                
-                graph.layout(new ForceDirectedLayout());
-		graph.getViewportGestures().setPanButton(MouseButton.SECONDARY);
-		graph.getNodeGestures().setDragButton(MouseButton.PRIMARY);
-                bP.getChildren().add(graph.getCanvas());
-                vBoxMain.getChildren().add(bP);
-                
-                HBox hBoxBottom = new HBox(15);
-                Button refreshButton = new Button("Refresh");
-                refreshButton.setOnAction(eh -> {
-                    labelDatos.setText("Datos total enviados: " + this.totalEnviados + " | Datos total recibidos: " + this.totalRecibidos + " | Perdidos: " + this.totalPerdidos + " | Corrompidos: " + this.totalCorrompidos);
-                    labelDatosP.setText("Datos total enviados: " + (this.totalEnviados*100)/this.totalEnviados + "% | Datos total recibidos: " + ((float)(this.totalRecibidos*100))/((float)this.totalEnviados) + "% | Perdidos: " + (float)(this.totalPerdidos*100)/(float)((float)this.totalEnviados/(float)128) + "% | Corrompidos: " + (float)(this.totalCorrompidos*100)/((float)this.totalEnviados/(float)128) +"%");
-                });
-                Button mostrarGraficoButton = new Button("Ver grafico");
-                mostrarGraficoButton.setOnAction(eh -> {
-                    mostrarGrafico((((float)this.totalRecibidos)/128), (((float)this.totalEnviados)/128));
-                });
-                TextField probabilidadPerdida = new TextField();
-                probabilidadPerdida.setTooltip(new Tooltip("Ingrese el porcentaje de perdida"));
-                
-                probabilidadPerdida.setOnAction(eh->{
-                    if(!probabilidadPerdida.getText().isEmpty()){
-                        pPerdida = Double.parseDouble(probabilidadPerdida.getText());
-                        Alert alert = new Alert(AlertType.INFORMATION);
-                        alert.setTitle("Cambiado");
-                        alert.setHeaderText(null);
-                        alert.setContentText("Probabilidad de perdidad cambiada a: " + pPerdida*100 );
-                        alert.showAndWait();
-                        this.totalPerdidos = 0;
-                        this.totalCorrompidos = 0;
-                        this.totalEnviados = 0;
-                        this.totalRecibidos = 0;
-                        labelDatos.setText("Datos total enviados: " + this.totalEnviados + " | Datos total recibidos: " + this.totalRecibidos + " | Perdidos: " + this.totalPerdidos + " | Corrompidos: " + this.totalCorrompidos);
-                        labelDatosP.setText("Datos total enviados: " + 0 + "% | Datos total recibidos: " + 0 + "% | Perdidos: " + 0 + "% | Corrompidos: " + 0 +"%");;
-                
-                    }
-                });
-                hBoxBottom.getChildren().addAll(labelDatos, refreshButton, mostrarGraficoButton, probabilidadPerdida);
-                vBoxMain.getChildren().addAll(hBoxBottom, labelDatosP);
+		// Variables para llevar el conteo de bytes y paquetes
+		long totalBytes = 0;
+		Pane bP;
+		ICell[] iDispositivos;
+		Graph graph;
 
-                bP.setMinSize(800, 600);
-                bP.setPrefSize(800,600);
-                bP.setBackground(new Background(new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, Insets.EMPTY)));
-                Scene scene = new Scene(vBoxMain);
+		// VBox principal
+		private VBox vBoxMain;
 
-		stage.setScene(scene);
-		stage.show();
-                stage.setOnCloseRequest(eh->{router.shutDown();});
-	}
+		// Variables para llevar el conteo de paquetes perdidos y corrompidos
+		private int totalPerdidos;
+		private int totalCorrompidos;
+
+		// Variables para llevar el conteo de paquetes enviados y recibidos
+		private int totalEnviados;
+		private int totalRecibidos;
+
+		// Probabilidad de pérdida de paquetes
+		private double pPerdida;
+
+		@Override
+		public void start(Stage stage) throws Exception {
+			// Inicialización de variables
+			pPerdida = 0.1;
+			this.totalPerdidos = 0;
+			this.totalCorrompidos = 0;
+			this.totalEnviados = 0;
+			this.totalRecibidos = 0;
+			vBoxMain = new VBox(15);
+
+			// Creación de etiquetas para mostrar datos
+			Label labelDatos = new Label("Datos total enviados: " + this.totalEnviados +
+										 " | Datos total recibidos: " + this.totalRecibidos/128 +
+										 " | Datos total recibidos: " + this.totalRecibidos +
+										 " | Perdidos: " + this.totalPerdidos +
+										 " | Corrompidos: " + this.totalCorrompidos);
+			Label labelDatosP = new Label("Datos total enviados: " + 0 + "% | Datos total recibidos: " + 0 + "% | Perdidos: " + 0 + "% | Corrompidos: " + 0 +"%");
+			labelDatos.setMinHeight(25);
+
+			// Configuración del escenario principal
+			this.stage = stage;
+			iniciarDispositivos();
+			graph = new Graph();
+			bP = new BorderPane();
+			iDispositivos = populateGraph(graph);
+
+			// Configuración del diseño del gráfico
+			graph.layout(new ForceDirectedLayout());
+			graph.getViewportGestures().setPanButton(MouseButton.SECONDARY);
+			graph.getNodeGestures().setDragButton(MouseButton.PRIMARY);
+			bP.getChildren().add(graph.getCanvas());
+			vBoxMain.getChildren().add(bP);
+
+			// Creación de HBox para contener botones y campos de texto
+			HBox hBoxBottom = new HBox(15);
+
+			// Botón para actualizar los datos
+			Button refreshButton = new Button("Refresh");
+			refreshButton.setOnAction(eh -> {
+				labelDatos.setText("Datos total enviados: " + this.totalEnviados +
+								   " | Datos total recibidos: " + this.totalRecibidos +
+								   " | Perdidos: " + this.totalPerdidos +
+								   " | Corrompidos: " + this.totalCorrompidos);
+				labelDatosP.setText("Datos total enviados: " + (this.totalEnviados*100)/this.totalEnviados + "% | Datos total recibidos: " + ((float)(this.totalRecibidos*100))/((float)this.totalEnviados) + "% | Perdidos: " + (float)(this.totalPerdidos*100)/(float)((float)this.totalEnviados/(float)128) + "% | Corrompidos: " + (float)(this.totalCorrompidos*100)/((float)this.totalEnviados/(float)128) +"%");
+			});
+
+			// Botón para mostrar el gráfico
+			Button mostrarGraficoButton = new Button("Ver grafico");
+			mostrarGraficoButton.setOnAction(eh -> {
+				mostrarGrafico((((float)this.totalRecibidos)/128), (((float)this.totalEnviados)/128));
+			});
+
+			// Campo de texto para cambiar la probabilidad de pérdida
+			TextField probabilidadPerdida = new TextField();
+			probabilidadPerdida.setTooltip(new Tooltip("Ingrese el porcentaje de perdida"));
+
+			probabilidadPerdida.setOnAction(eh -> {
+				if (!probabilidadPerdida.getText().isEmpty()) {
+					pPerdida = Double.parseDouble(probabilidadPerdida.getText());
+					Alert alert = new Alert(AlertType.INFORMATION);
+					alert.setTitle("Cambiado");
+					alert.setHeaderText(null);
+					alert.setContentText("Probabilidad de pérdida cambiada a: " + pPerdida * 100);
+					alert.showAndWait();
+					this.totalPerdidos = 0;
+					this.totalCorrompidos = 0;
+					this.totalEnviados = 0;
+					this.totalRecibidos = 0;
+					labelDatos.setText("Datos total enviados: " + this.totalEnviados +
+									   " | Datos total recibidos: " + this.totalRecibidos +
+									   " | Perdidos: " + this.totalPerdidos +
+									   " | Corrompidos: " + this.totalCorrompidos);
+					labelDatosP.setText("Datos total enviados: " + 0 + "% | Datos total recibidos: " + 0 + "% | Perdidos: " + 0 + "% | Corrompidos: " + 0 + "%");
+				}
+			});
+
+			// Añadir elementos al HBox inferior
+			hBoxBottom.getChildren().addAll(labelDatos, refreshButton, mostrarGraficoButton, probabilidadPerdida);
+			vBoxMain.getChildren().addAll(hBoxBottom, labelDatosP);
+
+			// Configuración del tamaño y el fondo del BorderPane
+			bP.setMinSize(800, 600);
+			bP.setPrefSize(800, 600);
+			bP.setBackground(new Background(new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, Insets.EMPTY)));
+
+			// Creación de la escena principal
+			Scene scene = new Scene(vBoxMain);
+
+			// Configuración del escenario principal
+			stage.setScene(scene);
+			stage.show();
+
+			// Acción al cerrar el escenario
+			stage.setOnCloseRequest(eh -> {
+				router.shutDown();
+			});
+		}
         
         public static void main(String[] args) {
             launch();
@@ -402,205 +439,236 @@ public class App extends Application {
     }
     
     private Stage mostrarSimuladorComputadora(Escenario escenario, boolean sinPerdida) {
-        ProgressBar progressBarTransferencia;
-        Label labelProgresoTransferencia;
-        Button actualizarConexionButton = new Button("Volver a conectar");
-        Button cerrarApp = new Button("Cerrar aplicacion");
-        escenario.getDispositivo().openApplication("mail", sinPerdida, this.pPerdida);
-        //application.Application app2 = escenario.getDispositivo().openApplication("radio");
-        
-        boolean envio = false;
-        TextArea textAreaRecepcion;
-        Stage stage = new Stage();
-        stage.initModality(Modality.NONE);
-        stage.initOwner(this.stage);
-        stage.initStyle(StageStyle.UTILITY);
-        
-        stage.setTitle("Simulador de Computadora de IP: " + escenario.getDispositivo().getIp());
-        int in1 = Integer.parseInt(escenario.getDispositivo().getMAC().substring(0, 1));
-        VBox vBoxSimulador = new VBox(15);
-        vBoxSimulador.setPadding(new Insets(20));
-        vBoxSimulador.setAlignment(Pos.CENTER);
-        vBoxSimulador.setBackground(new Background(new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, Insets.EMPTY)));
+		// Definición de variables
+		ProgressBar progressBarTransferencia;
+		Label labelProgresoTransferencia;
+		Button actualizarConexionButton = new Button("Volver a conectar");
+		Button cerrarApp = new Button("Cerrar aplicacion");
 
-        Button titulo = new Button("Simulador de Computadora de IP: " + escenario.getDispositivo().getIp());
-        titulo.setFont(Font.font("Arial", 15));
-        titulo.setStyle("-fx-background-color: transparent; -fx-text-fill: #030303; -fx-font-weight: bold;");
-        titulo.setDisable(true);
-        Label datosEnviados = new Label("Datos enviados: "+escenario.getDispositivo().getApp(0).getDatosRecibidos() + "\nPaquetes Recibidos: 0");
-        datosEnviados.setPrefHeight(35);
-        Label datosRecibidos = new Label("Datos recibidos: "+escenario.getDispositivo().getApp(0).getDatosRecibidos() + "\nPaquetes Recibidos: 0");
-        datosRecibidos.setPrefHeight(35);
-        Label datosPerdidos = new Label("Paquetes Perdidos: " + escenario.getDispositivo().getApp(0).getdPerdida());
-        Label datosCorrompidos = new Label("Paquetes Corrompidos: " + escenario.getDispositivo().getApp(0).getdCorrupccion());
+		// Abrir la aplicación en el dispositivo
+		escenario.getDispositivo().openApplication("mail", sinPerdida, this.pPerdida);
+		// application.Application app2 = escenario.getDispositivo().openApplication("radio");
 
-        progressBarTransferencia = new ProgressBar(0);
-        progressBarTransferencia.setMinWidth(250);
+		// Variables adicionales
+		boolean envio = false;
+		TextArea textAreaRecepcion;
+		Stage stage = new Stage();
 
-        labelProgresoTransferencia = new Label("Progreso de Transferencia: 0%");
-        labelProgresoTransferencia.setFont(Font.font("Arial", 14));
-        
-        Button btnEnviarArchivo = new Button("Enviar Archivo de Texto", new ImageView(new Image("file_icon.png", 24, 24, true, true)));
-        btnEnviarArchivo.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
-        btnEnviarArchivo.setOnAction(e -> {
-            enviarArchivoTexto(stage, escenario, datosEnviados, progressBarTransferencia, labelProgresoTransferencia);
-        });
-        
-        Button btnEnivarArchivoN = new Button("Enviar Archivo de Texto 100 veces", new ImageView(new Image("file_icon.png", 24, 24, true, true)));
-        btnEnivarArchivoN.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
-        btnEnivarArchivoN.setOnAction(e -> {
-            enviarArchivoTextoNVeces(stage, escenario, datosEnviados, progressBarTransferencia, labelProgresoTransferencia, 100);
-        });
-        
-        textAreaRecepcion = new TextArea();   
-        
-                textAreaRecepcion.setOnDragOver(event -> {
-            if (event.getGestureSource() != textAreaRecepcion && event.getDragboard().hasFiles()) {
-                event.acceptTransferModes(TransferMode.COPY);
-            }
-            event.consume();
-        });
+		// Configuración del nuevo escenario
+		stage.initModality(Modality.NONE);
+		stage.initOwner(this.stage);
+		stage.initStyle(StageStyle.UTILITY);
 
-        textAreaRecepcion.setOnDragDropped(event -> {
-            Dragboard db = event.getDragboard();
-            boolean success = false;
-            if (db.hasFiles()) {
-                File file = db.getFiles().get(0);
-                try {
-                    String content = new String(Files.readAllBytes(file.toPath()));
-                    textAreaRecepcion.setText(content);
-                    success = true;
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            event.setDropCompleted(success);
-            event.consume();
-        });
-        
-        escenario.getDispositivo().getApp(0).receiveDataFile(textAreaRecepcion, datosRecibidos);
-        new Thread (()->{
-              if(escenario.getDispositivo().hasApps()){
-                while(escenario.getDispositivo().hasApps() && escenario.getDispositivo().getApp(0).getRecibidorThread().isAlive()){
-                      try {
-                          Thread.sleep(550);
-                      } catch (InterruptedException ex) {
-                          Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
-                      }
-                      crearSobre(iDispositivos[in1-1], iDispositivos[2]);
-                      try {
-                          Thread.sleep(550);
-                      } catch (InterruptedException ex) {
-                          Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
-                      }
-                      crearSobre(iDispositivos[2], iDispositivos[in1-1]);
-                }
-              }
-        }).start();
-        
-        actualizarConexionButton.setOnAction(e -> {
-            if(escenario.getDispositivo().hasApps()){
-                if(!escenario.getDispositivo().getApp(0).getRecibidorThread().isAlive()){
-                    escenario.getDispositivo().getApp(0).receiveDataFile(textAreaRecepcion, datosRecibidos);
-                    new Thread (()->{
-                        while(escenario.getDispositivo().hasApps() && escenario.getDispositivo().getApp(0).getRecibidorThread().isAlive()){
-                              try {
-                                  Thread.sleep(550);
-                              } catch (InterruptedException ex) {
-                                  Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
-                              }
-                              crearSobre(iDispositivos[in1-1], iDispositivos[2]);
-                              try {
-                                  Thread.sleep(550);
-                              } catch (InterruptedException ex) {
-                                  Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
-                              }
-                              crearSobre(iDispositivos[2], iDispositivos[in1-1]);
-                        }
-                        
-                  }).start();
-                }
-            }
-            });
-        textAreaRecepcion.setMinHeight(100);
-        textAreaRecepcion.setEditable(false);
-        
-        VBox vboxTransferencia = new VBox(10, btnEnviarArchivo, btnEnivarArchivoN, progressBarTransferencia, labelProgresoTransferencia, textAreaRecepcion);
-        vboxTransferencia.setAlignment(Pos.CENTER);
+		// Configuración del título del escenario
+		stage.setTitle("Simulador de Computadora de IP: " + escenario.getDispositivo().getIp());
 
-        Button saveText = new Button("Guardar Archivo", new ImageView(new Image("save_file.png", 24, 24, true, true)));
-        saveText.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
-        saveText.setOnAction(e -> guardarArchivo(stage, textAreaRecepcion));
+		// Obtener el primer dígito de la MAC del dispositivo
+		int in1 = Integer.parseInt(escenario.getDispositivo().getMAC().substring(0, 1));
 
-        vBoxSimulador.getChildren().addAll(titulo, datosEnviados, datosRecibidos, datosPerdidos,datosCorrompidos,vboxTransferencia, saveText, actualizarConexionButton, cerrarApp);
-        vBoxSimulador.setAlignment(Pos.CENTER);
-        
-        Scene scene = new Scene(vBoxSimulador, 500, 700);
-        stage.setScene(scene);
-        stage.setOnShown(event -> {
-            if(in1 == 1){
-                stage.setX(this.stage.getX() + this.stage.getWidth());
-            } else {
-                stage.setX(this.stage.getX() - stage.getWidth());
-            }
-            stage.setY(this.stage.getY());
-        });
-        stage.setOnCloseRequest(eh->{
-            if(escenario.getDispositivo().hasApps()){
-                int perdida = escenario.getDispositivo().getApp(0).getdPerdida();
-                int corrupcion = escenario.getDispositivo().getApp(0).getdCorrupccion();
-                this.totalPerdidos += perdida;
-                this.totalCorrompidos += corrupcion;
-            }
-            escenario.getDispositivo().shutDown();
-        });
-        
-        cerrarApp.setOnAction(eh->{
-            int perdida = 0;
-            int corrupcion = 0;
-            if(escenario.getDispositivo().hasApps()){
-                escenario.getDispositivo().getApp(0).close();
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException ex) {
-                    Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                perdida = escenario.getDispositivo().getApp(0).getdPerdida();
-                corrupcion = escenario.getDispositivo().getApp(0).getdCorrupccion();
-                datosPerdidos.setText("Paquetes Perdidos: " + perdida);
-                datosCorrompidos.setText("Paquetes Corrompidos: " + corrupcion);
-                
-                this.totalPerdidos += perdida;
-                this.totalCorrompidos += corrupcion;
-                this.totalEnviados += escenario.getDispositivo().getApp(0).getDatosEnviados();
-                this.totalRecibidos += escenario.getDispositivo().getApp(0).getDatosRecibidos();
-                
-                escenario.getDispositivo().removeApp(escenario.getDispositivo().getApp(0));
-                textAreaRecepcion.setDisable(true);
-                btnEnviarArchivo.setDisable(true);
-                btnEnivarArchivoN.setDisable(true);
-                actualizarConexionButton.setDisable(true);
-                cerrarApp.setText("Abrir app");
-                
-                
-                
-            }else{
-                cerrarApp.setText("Cerrar aplicacion");
-                escenario.getDispositivo().openApplication("mail", sinPerdida, this.pPerdida);
-                escenario.getDispositivo().getApp(0).receiveDataFile(textAreaRecepcion, datosRecibidos);
-                textAreaRecepcion.clear();
-                textAreaRecepcion.setDisable(false);
-                btnEnviarArchivo.setDisable(false);
-                btnEnivarArchivoN.setDisable(false);
-                actualizarConexionButton.setDisable(false);
-            }
-        });
-        
-        stage.show();
-        
-        
-        return stage;
-    }
+		// Creación del VBox principal
+		VBox vBoxSimulador = new VBox(15);
+		vBoxSimulador.setPadding(new Insets(20));
+		vBoxSimulador.setAlignment(Pos.CENTER);
+		vBoxSimulador.setBackground(new Background(new BackgroundFill(Color.WHITE, CornerRadii.EMPTY, Insets.EMPTY)));
+
+		// Creación del botón de título
+		Button titulo = new Button("Simulador de Computadora de IP: " + escenario.getDispositivo().getIp());
+		titulo.setFont(Font.font("Arial", 15));
+		titulo.setStyle("-fx-background-color: transparent; -fx-text-fill: #030303; -fx-font-weight: bold;");
+		titulo.setDisable(true);
+
+		// Creación de etiquetas para mostrar datos
+		Label datosEnviados = new Label("Datos enviados: "+escenario.getDispositivo().getApp(0).getDatosRecibidos() + "\nPaquetes Recibidos: 0");
+		datosEnviados.setPrefHeight(35);
+		Label datosRecibidos = new Label("Datos recibidos: "+escenario.getDispositivo().getApp(0).getDatosRecibidos() + "\nPaquetes Recibidos: 0");
+		datosRecibidos.setPrefHeight(35);
+		Label datosPerdidos = new Label("Paquetes Perdidos: " + escenario.getDispositivo().getApp(0).getdPerdida());
+		Label datosCorrompidos = new Label("Paquetes Corrompidos: " + escenario.getDispositivo().getApp(0).getdCorrupccion());
+
+		// Creación de la barra de progreso
+		progressBarTransferencia = new ProgressBar(0);
+		progressBarTransferencia.setMinWidth(250);
+
+		// Creación de la etiqueta de progreso de transferencia
+		labelProgresoTransferencia = new Label("Progreso de Transferencia: 0%");
+		labelProgresoTransferencia.setFont(Font.font("Arial", 14));
+
+		// Creación del botón para enviar archivo de texto
+		Button btnEnviarArchivo = new Button("Enviar Archivo de Texto", new ImageView(new Image("file_icon.png", 24, 24, true, true)));
+		btnEnviarArchivo.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+		btnEnviarArchivo.setOnAction(e -> {
+			enviarArchivoTexto(stage, escenario, datosEnviados, progressBarTransferencia, labelProgresoTransferencia);
+		});
+
+		// Creación del botón para enviar archivo de texto 100 veces
+		Button btnEnivarArchivoN = new Button("Enviar Archivo de Texto 100 veces", new ImageView(new Image("file_icon.png", 24, 24, true, true)));
+		btnEnivarArchivoN.setStyle("-fx-background-color: #4CAF50; -fx-text-fill: white;");
+		btnEnivarArchivoN.setOnAction(e -> {
+			enviarArchivoTextoNVeces(stage, escenario, datosEnviados, progressBarTransferencia, labelProgresoTransferencia, 100);
+		});
+
+		// Creación del área de texto para la recepción
+		textAreaRecepcion = new TextArea();
+
+		// Configuración del área de texto para arrastrar y soltar archivos
+		textAreaRecepcion.setOnDragOver(event -> {
+			if (event.getGestureSource() != textAreaRecepcion && event.getDragboard().hasFiles()) {
+				event.acceptTransferModes(TransferMode.COPY);
+			}
+			event.consume();
+		});
+
+		textAreaRecepcion.setOnDragDropped(event -> {
+			Dragboard db = event.getDragboard();
+			boolean success = false;
+			if (db.hasFiles()) {
+				File file = db.getFiles().get(0);
+				try {
+					String content = new String(Files.readAllBytes(file.toPath()));
+					textAreaRecepcion.setText(content);
+					success = true;
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			event.setDropCompleted(success);
+			event.consume();
+		});
+
+		// Configuración del área de texto para recibir datos
+		escenario.getDispositivo().getApp(0).receiveDataFile(textAreaRecepcion, datosRecibidos);
+
+		// Inicio de un hilo para la transferencia de datos
+		new Thread (()->{
+			if(escenario.getDispositivo().hasApps()){
+				while(escenario.getDispositivo().hasApps() && escenario.getDispositivo().getApp(0).getRecibidorThread().isAlive()){
+					try {
+						Thread.sleep(550);
+					} catch (InterruptedException ex) {
+						Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
+					}
+					crearSobre(iDispositivos[in1-1], iDispositivos[2]);
+					try {
+						Thread.sleep(550);
+					} catch (InterruptedException ex) {
+						Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
+					}
+					crearSobre(iDispositivos[2], iDispositivos[in1-1]);
+				}
+			}
+		}).start();
+
+		// Configuración del botón para actualizar la conexión
+		actualizarConexionButton.setOnAction(e -> {
+			if(escenario.getDispositivo().hasApps()){
+				if(!escenario.getDispositivo().getApp(0).getRecibidorThread().isAlive()){
+					escenario.getDispositivo().getApp(0).receiveDataFile(textAreaRecepcion, datosRecibidos);
+					new Thread (()->{
+						while(escenario.getDispositivo().hasApps() && escenario.getDispositivo().getApp(0).getRecibidorThread().isAlive()){
+							try {
+								Thread.sleep(550);
+							} catch (InterruptedException ex) {
+								Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
+							}
+							crearSobre(iDispositivos[in1-1], iDispositivos[2]);
+							try {
+								Thread.sleep(550);
+							} catch (InterruptedException ex) {
+								Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
+							}
+							crearSobre(iDispositivos[2], iDispositivos[in1-1]);
+						}).start();
+					}
+				}
+			});
+
+			// Configuración del área de texto para la recepción
+			textAreaRecepcion.setMinHeight(100);
+			textAreaRecepcion.setEditable(false);
+
+			// Creación del VBox para la transferencia de archivos
+			VBox vboxTransferencia = new VBox(10, btnEnviarArchivo, btnEnivarArchivoN, progressBarTransferencia, labelProgresoTransferencia, textAreaRecepcion);
+			vboxTransferencia.setAlignment(Pos.CENTER);
+
+			// Creación del botón para guardar el archivo
+			Button saveText = new Button("Guardar Archivo", new ImageView(new Image("save_file.png", 24, 24, true, true)));
+			saveText.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white;");
+			saveText.setOnAction(e -> guardarArchivo(stage, textAreaRecepcion));
+
+			// Añadir elementos al VBox principal
+			vBoxSimulador.getChildren().addAll(titulo, datosEnviados, datosRecibidos, datosPerdidos, datosCorrompidos, vboxTransferencia, saveText, actualizarConexionButton, cerrarApp);
+			vBoxSimulador.setAlignment(Pos.CENTER);
+
+			// Creación de la escena principal
+			Scene scene = new Scene(vBoxSimulador, 500, 700);
+			stage.setScene(scene);
+
+			// Configuración de la posición del escenario al mostrarse
+			stage.setOnShown(event -> {
+				if(in1 == 1){
+					stage.setX(this.stage.getX() + this.stage.getWidth());
+				} else {
+					stage.setX(this.stage.getX() - stage.getWidth());
+				}
+				stage.setY(this.stage.getY());
+			});
+
+			// Acción al cerrar el escenario
+			stage.setOnCloseRequest(eh -> {
+				if(escenario.getDispositivo().hasApps()){
+					int perdida = escenario.getDispositivo().getApp(0).getdPerdida();
+					int corrupcion = escenario.getDispositivo().getApp(0).getdCorrupccion();
+					this.totalPerdidos += perdida;
+					this.totalCorrompidos += corrupcion;
+				}
+				escenario.getDispositivo().shutDown();
+			});
+
+			// Configuración del botón para cerrar la aplicación
+			cerrarApp.setOnAction(eh -> {
+				int perdida = 0;
+				int corrupcion = 0;
+				if(escenario.getDispositivo().hasApps()){
+					escenario.getDispositivo().getApp(0).close();
+					try {
+						Thread.sleep(10);
+					} catch (InterruptedException ex) {
+						Logger.getLogger(App.class.getName()).log(Level.SEVERE, null, ex);
+					}
+					perdida = escenario.getDispositivo().getApp(0).getdPerdida();
+					corrupcion = escenario.getDispositivo().getApp(0).getdCorrupccion();
+					datosPerdidos.setText("Paquetes Perdidos: " + perdida);
+					datosCorrompidos.setText("Paquetes Corrompidos: " + corrupcion);
+
+					this.totalPerdidos += perdida;
+					this.totalCorrompidos += corrupcion;
+					this.totalEnviados += escenario.getDispositivo().getApp(0).getDatosEnviados();
+					this.totalRecibidos += escenario.getDispositivo().getApp(0).getDatosRecibidos();
+
+					escenario.getDispositivo().removeApp(escenario.getDispositivo().getApp(0));
+					textAreaRecepcion.setDisable(true);
+					btnEnviarArchivo.setDisable(true);
+					btnEnivarArchivoN.setDisable(true);
+					actualizarConexionButton.setDisable(true);
+					cerrarApp.setText("Abrir app");
+				} else {
+					cerrarApp.setText("Cerrar aplicacion");
+					escenario.getDispositivo().openApplication("mail", sinPerdida, this.pPerdida);
+					escenario.getDispositivo().getApp(0).receiveDataFile(textAreaRecepcion, datosRecibidos);
+					textAreaRecepcion.clear();
+					textAreaRecepcion.setDisable(false);
+					btnEnviarArchivo.setDisable(false);
+					btnEnivarArchivoN.setDisable(false);
+					actualizarConexionButton.setDisable(false);
+				}
+			});
+
+			// Mostrar el escenario
+			stage.show();
+
+			return stage;
+		}
+
     
     private void enviarArchivoTextoNVeces(Stage stage, Escenario escenario, Label datosEnviados, ProgressBar progressBarTransferencia, Label labelProgresoTransferencia, int n){
         File file = seleccionarArchivo(stage);
