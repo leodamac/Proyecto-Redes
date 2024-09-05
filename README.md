@@ -1,54 +1,89 @@
-# Simulación de Errores en la Transmisión de Datos en un Entorno Cliente-Servidor
 
-Este proyecto consiste en una simulación detallada del modelo TCP/IP utilizando Java, con el propósito de analizar el impacto de errores comunes en la transmisión de datos a través de redes. La simulación aborda aspectos críticos de la comunicación en red, permitiendo una evaluación de cómo la integridad de los datos se ve afectada en presencia de errores durante el proceso de transmisión.
+# 📡 Simulación de Errores en la Transmisión de Datos en un Entorno Cliente-Servidor
 
-## Descripción General
+Este proyecto es una **simulación completa del modelo TCP/IP**, implementada en **Java**, que permite analizar los efectos de diversos errores en la transmisión de datos, como la **pérdida de paquetes**, la **corrupción de datos** y el **envío fuera de orden**. A través de esta herramienta interactiva, los usuarios pueden observar en tiempo real cómo los errores impactan la integridad de los datos transmitidos y explorar los desafíos que enfrentan las redes de comunicación. 
 
-La simulación emula el proceso de envío de un archivo de texto desde un cliente hacia un servidor, pasando por un router intermedio, y siguiendo estrictamente las capas del modelo TCP/IP, incluida la capa física. Durante la transmisión, se introducen de manera aleatoria errores como pérdida de paquetes, entrega desordenada y corrupción de bits. Estos errores permiten observar y evaluar sus efectos sobre la integridad de los datos y la fiabilidad de la red.
+## 🚀 Características Principales
 
-### Características Principales
+- **Simulación del Modelo TCP/IP** junto con la **Capa Física**.
+- **Interfaz Gráfica de Usuario (GUI)** interactiva, desarrollada con **JavaFX**, que permite cargar archivos, realizar simulaciones de transmisión y observar el impacto de los errores.
+- **Inyección Controlada de Errores**: Simula pérdida de paquetes, corrupción de datos y reordenamiento de paquetes, con parámetros ajustables por el usuario.
+- **Modificación de Librería Externa**: Se realizó una modificación a la librería [fxgraph](https://github.com/sirolf2009/fxgraph) para adaptarla a las necesidades específicas del proyecto.
+  
+## 🖼️ Diagrama del Modelo TCP/IP con Capa Física
 
-- **Implementación Completa del Modelo TCP/IP**: La simulación abarca las capas de Aplicación, Transporte, Internet, Enlace de Datos y Física.
-- **Interfaz Gráfica Intuitiva**: Desarrollada con JavaFX, la GUI proporciona una representación visual clara del entorno de red, permitiendo la carga, transmisión y recepción de archivos de manera interactiva.
-- **Simulación de Errores**: El sistema incorpora la posibilidad de simular errores críticos en la transmisión de datos, como la pérdida de paquetes y la corrupción de datos, con parámetros ajustables.
-- **Visualización en Tiempo Real**: Los usuarios pueden monitorizar el número de paquetes enviados y recibidos, así como los errores detectados, todo en tiempo real.
+En esta simulación, los datos pasan por diversas capas del modelo TCP/IP, cada una con una probabilidad de pérdida o corrupción. Al final del proceso, existe un cálculo probabilístico del porcentaje de acierto en la transmisión, teniendo en cuenta los errores acumulados en cada capa.
 
-## Estructura del Proyecto
+![TCP/IP Model with Physical Layer](https://github.com/leodamac/Proyecto-Redes/blob/main/Grupo7_RedesDeDatos/src/main/resources/tcpip.jpg)
 
-El proyecto se organiza en varias secciones que abordan los distintos componentes y funcionalidades:
+## 🏗️ Arquitectura del Proyecto
 
-1. **Interfaz Gráfica de Usuario (GUI)**: Utiliza JavaFX para ofrecer una visualización intuitiva del proceso de transmisión de datos en la red simulada.
-2. **Simulación de Dispositivos de Red**: Los dispositivos como PCs y routers son simulados para recrear un entorno de red realista, implementando las funciones clave de las capas de red.
-3. **Gestión de Errores y Control de Transmisión**: Se introducen errores en la transmisión de datos mediante parámetros de probabilidad, permitiendo un análisis detallado de su impacto.
+El proyecto se organiza en las siguientes componentes clave:
 
-## Requisitos
-- **Java 8 o superior**: Necesario para la ejecución del proyecto.
-- **JavaFX**: Utilizado para el desarrollo de la interfaz gráfica.
+1. **Interfaz Gráfica de Usuario (GUI)**: Utiliza **JavaFX** para proporcionar una visualización clara del entorno de red simulado. Permite al usuario cargar un archivo, simular la transmisión y visualizar los errores inyectados.
+   
+2. **Dispositivos Simulados**: Las computadoras y el router se simulan para emular el flujo de datos a través de la red. Cada dispositivo implementa las capas de enlace de datos, red y la capa física para la transmisión real.
 
-## Instrucciones de Instalación
+3. **Capas del Modelo TCP/IP**:
+    - **Capa de Aplicación**: Segmenta los datos y los prepara para la transmisión.
+    - **Capa de Transporte**: Encapsula los segmentos con información de control como los checksums.
+    - **Capa de Red**: Añade direcciones IP y checksums adicionales.
+    - **Capa de Enlace de Datos**: Añade las direcciones MAC para asegurar la entrega de los paquetes.
+    - **Capa Física**: Simula la transmisión real de bits entre los dispositivos.
 
-1. Clona este repositorio en tu entorno local:
+4. **Gestión de Errores**: Se introducen errores aleatorios durante la transmisión. El usuario puede ajustar la probabilidad de errores como la pérdida y la corrupción de datos.
+
+## 📊 Experimentos Realizados
+
+Los experimentos realizados muestran cómo diferentes factores afectan la integridad de los datos:
+
+- **Sin Errores**: Simulación de la transmisión en condiciones ideales.
+- **Variación de la Probabilidad de Error**: Ajustes en las probabilidades de pérdida y corrupción para observar el impacto en la integridad.
+- **Evaluación de Tamaños de Archivos**: Pruebas con archivos de distintos tamaños para evaluar la susceptibilidad a los errores.
+
+## 🛠️ Modificación de Librería
+
+Para cumplir con los requisitos del proyecto, se modificó la librería de terceros [fxgraph](https://github.com/sirolf2009/fxgraph). Estas modificaciones fueron necesarias para adaptar la topología de red utilizada en la simulación, asegurando una representación gráfica adecuada para la transmisión de datos. Las adaptaciones realizadas permiten que la librería funcione específicamente para los fines de esta simulación.
+
+## 📦 Instalación
+
+1. Clona el repositorio:
    ```bash
    git clone https://github.com/leodamac/Proyecto-Redes.git
    ```
-2. Importa el proyecto en tu entorno de desarrollo integrado (IDE) preferido, como Eclipse o IntelliJ IDEA.
-3. Asegúrate de que Java y JavaFX están configurados correctamente en tu entorno.
-4. Ejecuta el proyecto desde la clase principal para iniciar la simulación.
 
-## Uso de la Simulación
+2. Importa el proyecto en tu entorno de desarrollo preferido (**Eclipse**, **IntelliJ**, etc.).
 
-1. Al iniciar la aplicación, se desplegará una interfaz gráfica que permite la carga de archivos de texto desde una computadora simulada.
-2. Configura los parámetros de simulación, incluyendo las probabilidades de errores en la transmisión.
-3. Inicia la simulación para observar cómo los datos se transmiten a través de la red y cómo los errores afectan la integridad de la información.
+3. Asegúrate de que **Java 8 o superior** y **JavaFX** están configurados correctamente en tu entorno.
 
-## Autores
+4. Ejecuta la clase principal para iniciar la simulación.
 
-Este proyecto ha sido desarrollado por:
+## 💻 Requisitos del Sistema
+
+- **Java 8 o superior**
+- **JavaFX**
+
+## 🔬 Resultados
+
+Los experimentos mostraron una degradación progresiva de la integridad de los datos a medida que aumenta la probabilidad de errores, con una marcada afectación en mensajes más grandes. Estos resultados subrayan la importancia de los mecanismos de corrección de errores, que podrían incluirse en versiones futuras de la simulación.
+
+Para más detalles sobre los resultados de los experimentos, consulta el [documento técnico](Informe-FINAL.pdf).
+
+## ✨ Conclusiones
+
+Esta simulación es una herramienta valiosa para la educación y la investigación, proporcionando una representación clara de los desafíos que enfrentan las redes de comunicación. Los usuarios pueden interactuar con la interfaz para ajustar los parámetros de error y observar cómo estos afectan la transmisión de datos en un entorno controlado. 
+
+El proyecto a futuro se puede mejorar para que incluya la implementación de **protocolos de corrección de errores** y mayor escalabilidad del sistema para redes más grandes.
+
+## ✍️ Autores
+
 - **Leonardo Macías** - [leodamac@espol.edu.ec](mailto:leodamac@espol.edu.ec)
 - **Kevin Salazar** - [kejosala@espol.edu.ec](mailto:kejosala@espol.edu.ec)
 - **Génesis López** - [gennalop@espol.edu.ec](mailto:gennalop@espol.edu.ec)
 - **Jorge Herrera** - [joheniet@espol.edu.ec](mailto:joheniet@espol.edu.ec)
 
-## Referencias
 
-Para obtener información adicional sobre el modelo TCP/IP y las técnicas de simulación utilizadas, consulta las referencias incluidas en la documentación del proyecto.
+## 📚 Referencias
+
+Para una explicación detallada de la simulación y su marco teórico, consulta el [informe completo](Informe-FINAL.pdf) disponible en este repositorio.
+
